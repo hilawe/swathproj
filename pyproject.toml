@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swathproj"
+version = "0.1.0"
+description = "Analytic geolocation for Low Earth Orbit satellite scanning swaths"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "CC0-1.0"}
+authors = [{name = "Hilawe Semunegus"}]
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+verification = ["pyproj", "netCDF4"]
+test = ["pytest", "pyproj"]
+
+[tool.setuptools]
+packages = ["swathproj"]
