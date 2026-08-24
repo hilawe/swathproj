@@ -39,6 +39,7 @@ docstring). Measured against real products:
 | AVHRR GAC L1C | Metop-C | cross-track, native | radial profile | 3.7 km |
 | VIIRS SDR | NOAA-20 | cross-track, native | radial profile | 0.3 km |
 | ATMS FCDR L1C | Suomi-NPP | cross-track, native | radial profile | 7.2 km |
+| SSM/I | DMSP F13 | conical | full mapping | 2.1 km |
 | SSMIS | DMSP F17 | conical | full mapping | 2.3 km |
 | AMSR2 | GCOM-W1 | conical | full mapping | 3.1 km |
 
