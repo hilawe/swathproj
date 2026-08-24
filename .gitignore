@@ -3,4 +3,6 @@ __pycache__/
 *.nc
 data/
 .venv/
+.venv-test/
 *.egg-info/
+.pytest_cache/

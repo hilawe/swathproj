@@ -6,7 +6,7 @@ By Hilawe Semunegus, NOAA NCEI.
 
 Most polar-orbiting swath products record a latitude and longitude for every pixel. That says
 where each observation is, but not the relationship between array position and ground position,
-so software cannot ask which pixel covers a location, subset by geography, or check the stored
+so software cannot ask which pixel is nearest a location, subset by geography, or check the stored
 coordinates against the geometry that produced them without reading the whole coordinate array.
 
 `swathproj` provides that relationship as a small analytic model. The mapping is a rotated-pole
@@ -19,21 +19,32 @@ its pole parameters can be emitted directly and read by any CF-aware tool.
 
 | geometry | offset from the sub-satellite point | status |
 |---|---|---|
-| cross-track (whiskbroom) | along a rotated meridian | forward and inverse |
-| push-broom | along a rotated meridian | forward and inverse |
+| cross-track (whiskbroom or push-broom) | along a rotated meridian | forward and inverse |
 | conical (spinning) | around a small circle of fixed angular radius | forward |
+
+A push-broom shares the cross-track offset, because its detectors sit at the same fixed
+cross-track look angles. The cross-track offset comes in two kinds, a uniform ground-angle grid
+(a resampled product) and a slant-range spacing (a native swath, whose ground spacing grows
+toward the swath edge).
 
 ## Verification
 
-The `verification/` scripts fit the model to a published file's own stored coordinates and
-report the residual. Each downloads nothing, and points at a local file (paths in each script's
+The `verification/` scripts fit the model to a published file's own stored coordinates and report
+the residual. Each downloads nothing, and points at a local file (paths in each script's
 docstring). Measured against real products:
 
-| instrument | platform | geometry | median residual |
-|---|---|---|---|
-| VIIRS GAC | NOAA-20 | cross-track (resampled) | 0.34 km |
-| SSMIS | DMSP F17 | conical | 2.3 km |
-| AMSR2 | GCOM-W1 | conical | 3.1 km |
+| instrument | platform | geometry | test | median residual |
+|---|---|---|---|---|
+| VGAC | NOAA-20 | cross-track, resampled | full mapping | 0.34 km |
+| AVHRR GAC L1C | Metop-C | cross-track, native | radial profile | 3.7 km |
+| VIIRS SDR | NOAA-20 | cross-track, native | radial profile | 0.3 km |
+| ATMS FCDR L1C | Suomi-NPP | cross-track, native | radial profile | 7.2 km |
+| SSMIS | DMSP F17 | conical | full mapping | 2.3 km |
+| AMSR2 | GCOM-W1 | conical | full mapping | 3.1 km |
+
+The full-mapping rows compare the complete transformation against the file's stored coordinates.
+The native cross-track rows are one-dimensional radial-profile checks of the slant-range offset,
+not full two-dimensional reproductions, so they are reported at that level.
 
 ## Install
 
@@ -57,6 +68,13 @@ geo = SwathGeometry(
 lat, lon = geo.forward(400, 5000)     # pixel (cross-track, along-track) to Earth
 i, j = geo.inverse(lat, lon)          # Earth back to the containing pixel
 ```
+
+## Contributors
+
+Ken Knapp (Knapp WeatherSat Services LLC) is a key contributor. The rotated-pole and
+Earth-rotation core of this implementation is the projection he developed for the VGAC dataset
+(Knapp et al., 2024, doi:10.25921/gsef-pg81), which this work generalizes to the three scan
+geometries.
 
 ## License
 
