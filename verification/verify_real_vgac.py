@@ -16,7 +16,8 @@ runs on a fresh clone.
 Why this file settles things the synthetic tests cannot. Every other test in this project
 compares one formulation against another, so a convention shared by both is invisible. A
 production file carries the projection parameters AND the per-cell latitude and longitude the
-producer actually published, so it can adjudicate between formulations. Two questions about the published formulation are answered here.
+producer actually published, so it can adjudicate between formulations. Two questions about
+the published formulation are answered here.
 
 RESULT 1, the cross-track convention. Fitting the only free parameter, the cross-track offset,
 against the file's own coordinates gives a sharp minimum at cell centre = (i - 400) * beta with
@@ -31,9 +32,9 @@ Two nearby conventions are therefore wrong:
 RESULT 2, which forward formulation is authoritative. Against the file, the spherical rotation
 used here has a median error of 0.34 km, while the tutorial's ellipsoidal `vgac_to_earth` has a
 median error of 18 km. The spherical formulation is the one that reproduces the published data.
-Earlier rounds of this project described the gap between them as "a tutorial-internal
-inconsistency rather than an error in the archived data. The measurement here establishes the
-direction with evidence.
+This project earlier described the gap between them as a tutorial-internal inconsistency
+rather than an error in the archived data, and offered no evidence for that. The measurement
+here establishes the direction with evidence.
 
 RESULT 3, a consequence for the published inverse. `earth_to_vgac` uses NADIR = 401 with
 half-cell centres, which places the file's true cell centres exactly on ITS cell boundaries.

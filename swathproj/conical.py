@@ -20,8 +20,9 @@ pass and the cone radius tracks it at a correlation of +0.97; a single fixed rad
 misplace pixels by up to about 43 km across the pass, so the DMSP series needs a per-scan
 cone radius.
 
-The SAME orbital eccentricity affects a second quantity: the along-track ANGULAR RATE varies with altitude, at a correlation
-of -0.91, exactly as Kepler's second law requires. On the SSMIS granule a constant along-track
+The SAME orbital eccentricity affects a second quantity: the along-track ANGULAR RATE
+varies with altitude, at a correlation of -0.91, exactly as Kepler's second law requires.
+On the SSMIS granule a constant along-track
 step, even the best-fit one, leaves a 16.6 km rms and 38.5 km maximum along-track error. So
 ``scan_longitude_deg`` may carry the along-track angle per scan instead. A synthetic resampled
 product such as VGAC does not need it, because its grid is DEFINED as a uniform division of 360
