@@ -28,12 +28,25 @@ untouched. Those are different displacements, and latitude is what separates the
 reference orbit:
 
     scan_step = 360/n_scan, fitted rate 14.994075     ->    0.34 m
-    scan_step = 360/n_scan, nominal rate 15.0         ->  330.72 m
-    compensating step from the algebra, nominal 15.0  ->  808.39 m
+    scan_step = 360/n_scan, nominal rate 15.0         ->  329.44 m
+    compensating step from the algebra, nominal 15.0  ->  803.69 m
+
+(Those three come from the deterministic run below, 30000 sampled cells under seed 1.)
 
 The substitution the abstract algebra prescribes makes the fit WORSE than leaving the rate at its
-nominal value. The parameters are not interchangeable in this model, so the rate is identifiable
-from a single orbit and the fitted value is a property of the orbit rather than of a convention.
+nominal value, so the parameters are not interchangeable in this model.
+
+PART 3a MAKES THE POINT STRUCTURALLY RATHER THAN BY COMPARISON. Because the rate shifts geographic
+longitude only, LATITUDE cannot depend on it. Fitting the scan step against latitude alone is
+therefore a determination in which the rate cannot participate, and on 100000 sampled cells it
+returns exactly 360/n_scan, to zero difference at double precision, with the objective sharply
+curved around it (a 1e-6 relative change in the step raises the latitude rms by two orders of
+magnitude). The step is pinned by latitude, and the rate then accounts for the remaining
+longitude shear.
+
+WHAT THAT ENTITLES US TO SAY, precisely: the zonal shear parameter is UNIQUELY FITTED WITHIN THIS
+MODEL. It is not thereby shown to be the physical Earth-rotation rate, a parameter the producer
+holds, or a property of the orbit. Those are separate claims needing separate evidence.
 
 WHAT REMAINS UNSETTLED. That the parameter is identifiable does not establish that the producer
 holds it, or that it is what generates the archived coordinates. Agreement at storage precision is
@@ -126,6 +139,37 @@ def main():
     # ground track (latitude AND longitude) while a rate change is a pure zonal shear. If the
     # substitution Part 2 licenses were also valid here, parameterisation B would fit as well as A.
     valid = np.isfinite(lat) & np.isfinite(lon) & (np.abs(lat) <= 90)
+
+    # PART 3a: the STRUCTURAL determination. The rate shifts geographic longitude only, so latitude
+    # cannot depend on it. Fitting the scan step against latitude alone is therefore a measurement
+    # the rate cannot enter, which is stronger evidence than any comparison of fitted residuals.
+    lat_rng = np.random.default_rng(11)
+    lj = lat_rng.integers(0, n_scan, 100000)
+    li = lat_rng.integers(0, n_pixel, 100000)
+    lk = valid[lj, li]
+    lj, li = lj[lk], li[lk]
+    lat_rot = (li - geo.nadir_index) * geo.cell_size_deg
+    lat_target = lat[lj, li]
+
+    def latitude_rms(step):
+        la, _ = rotated_to_geographic(lat_rot, lj * step, pole_lat, pole_lon, npgl)
+        return float(np.sqrt(np.mean((la - lat_target) ** 2)))
+
+    closure_step = geo._scan_angd
+    lat_grid = np.linspace(closure_step * (1 - 4e-5), closure_step * (1 + 4e-5), 4001)
+    lat_best = float(lat_grid[int(np.argmin([latitude_rms(v) for v in lat_grid]))])
+    print(f"\nlatitude-only fit of the scan step, n={lj.size} (the rate cannot enter):")
+    print(f"   360/n_scan   = {closure_step!r}")
+    print(f"   latitude fit = {lat_best!r}   difference {abs(lat_best - closure_step):.2e} deg")
+    print(f"   rms at optimum {latitude_rms(closure_step):.2e} deg, "
+          f"at +1e-6 relative {latitude_rms(closure_step * (1 + 1e-6)):.2e} deg")
+    assert abs(lat_best - closure_step) <= 2 * np.spacing(closure_step), (
+        f"the latitude-only fit returns {lat_best!r}, not 360/n_scan = {closure_step!r}. The scan "
+        f"step is then NOT pinned by latitude and the structural identifiability argument fails.")
+    assert latitude_rms(closure_step * (1 + 1e-6)) > 10 * latitude_rms(closure_step), (
+        "the latitude objective is flat near the optimum, so latitude does not determine the scan "
+        "step sharply and the structural argument is weaker than claimed")
+
     rng = np.random.default_rng(1)
     probe_j = rng.integers(0, n_scan, 30000)
     probe_i = rng.integers(0, n_pixel, 30000)
@@ -155,6 +199,8 @@ def main():
     assert m_fitted < 0.01 * m_substituted, (
         f"the fitted rate ({m_fitted * 1000:.1f} m) is not decisively better than the algebraic "
         f"substitution ({m_substituted * 1000:.1f} m), so the rate is not clearly identifiable")
+    print("   -> the zonal shear parameter is uniquely fitted WITHIN THIS MODEL. That is not a "
+          "claim that it is the physical Earth-rotation rate or a producer-held parameter.")
 
     # --- PART 4: the reconstruction result, fitted on one half and scored on the other -------
     def residual(jj, ii, rate):
@@ -208,9 +254,9 @@ def main():
         "residual, so the explanation for that figure is no longer demonstrated")
 
     print("\nvgac along-track: one fitted along-track parameter reproduces this orbit to storage "
-          "precision, and it IS identifiable as a zonal shear rate. The abstract additive form is "
-          "degenerate, but this model applies the scan step before the rotated-pole transform, so "
-          "the step also moves latitude and cannot absorb a rate change.")
+          "precision. The zonal shear parameter is uniquely fitted within this model: latitude "
+          "alone pins the scan step at 360/n_scan, so the rate cannot be traded against it. "
+          "Whether that parameter is the physical rotation rate remains unestablished.")
     return 0
 
 
