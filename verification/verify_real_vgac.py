@@ -45,6 +45,14 @@ about 99.8%.
 None of this is a criticism of the dataset itself. The geolocation in the file is
 self-consistent, and what differs is the indexing convention assumed by the published helper code
 and by the formula as literally written in the preprint.
+
+NOTE, 2026-09-01. The sub-kilometre residuals this script reports are NOT model error. They come
+from the nominal Earth-rotation rate of 15.0 degrees per hour, and this orbit requires 14.994075.
+With
+that corrected the mapping reproduces the stored coordinates to about 0.3 m across the whole file.
+This script is kept as-is because its subject is the cross-track offset and the choice of forward
+formulation, both of which the rate does not affect. For the rate itself see
+verification/verify_vgac_rotation_rate.py.
 """
 
 import sys
