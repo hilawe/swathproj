@@ -28,12 +28,20 @@ inverse answers containment (which cell footprint covers a point) and reports po
 the swath as such. Its one stated limit is that exactness is in the flooring sense: a point
 lying mathematically on a cell boundary can fall to either side, because the rotation is
 floating-point trigonometry. It differs
-from the tutorial's ``vgac_to_earth`` forward by up to about 30 km. That question is SETTLED,
-not open: measured against a production NOAA-20 VGAC orbit's own per-cell coordinates, this
-spherical model has a median error of 0.34 km while ``vgac_to_earth`` has 17.8 km
-(``verification/verify_real_vgac.py``). The spherical angular model is the one that reproduces
-the published data, and the difference is a property of that helper code, which mixes an
-ellipsoidal path into an otherwise spherical model and assumes a different nadir index.
+from the tutorial's ``vgac_to_earth`` forward by up to about 30 km. Measured against a
+production NOAA-20 VGAC orbit's own per-cell coordinates, this spherical model lands within
+0.34 km while ``vgac_to_earth`` is 17.8 km out (``verification/verify_real_vgac.py``), so the
+spherical angular model is the one consistent with the published data. The difference is a
+property of that helper code, which mixes an ellipsoidal path into an otherwise spherical model
+and assumes a different nadir index.
+
+Read that 0.34 km as a comparison baseline, not as this model's accuracy. It is what the
+along-track term costs when the Earth-rotation rate is left at its nominal 15 degrees per hour.
+Fitting one along-track degree of freedom against the same orbit brings the agreement to about
+0.3 m, which is the float32 quantum of the stored coordinates
+(``verification/verify_vgac_alongtrack.py``). That fitted quantity is NOT identifiable as a
+rotation rate from a single file, because the scan time is exactly linear in scan index, so a
+change in rate and a change in scan step are indistinguishable.
 """
 
 from .geometry import SwathGeometry

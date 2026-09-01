@@ -98,9 +98,13 @@ class SwathGeometry:
         nadir_index a ZERO-BASED array index. This convention is not a choice: it is what the
         published VGAC files themselves use, established by fitting the offset against a real
         orbit's stored latitude and longitude (verification/verify_real_vgac.py). The residual
-        minimises sharply at i - 400 (0.34 km, which is the sub-cell scatter expected because
-        the stored coordinates are pixel means) and degrades linearly at 0.97 km per quarter
-        cell either side.
+        minimises sharply at i - 400 and degrades linearly at 0.97 km per quarter cell either
+        side, so the offset is well determined whatever the along-track term does. The residual
+        at that minimum is 0.34 km under the nominal Earth-rotation rate and about 0.3 m once one
+        along-track degree of freedom is fitted (verification/verify_vgac_alongtrack.py). An
+        earlier comment here explained the 0.34 km as sub-cell scatter from stored coordinates
+        being pixel means. That explanation was wrong on both counts: the residual is an
+        along-track effect, and the stored coordinates are not demonstrated to be pixel means.
 
         Two nearby conventions are wrong by whole fractions of a cell and are worth naming so
         they are not reintroduced. An earlier version of this code used (i - 401 + 0.5), which

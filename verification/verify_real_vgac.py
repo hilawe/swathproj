@@ -1,4 +1,4 @@
-"""Verify the projection against a real VGAC orbit file, the authoritative ground truth.
+"""Verify the projection against a real VGAC orbit file, using its stored coordinates as truth.
 
 Run from the repo root with the project venv:
 
@@ -21,17 +21,23 @@ the published formulation are answered here.
 
 RESULT 1, the cross-track convention. Fitting the only free parameter, the cross-track offset,
 against the file's own coordinates gives a sharp minimum at cell centre = (i - 400) * beta with
-i a ZERO-BASED array index. Residual 0.34 km, flat across the whole swath, which is the
-sub-cell scatter expected because the published coordinates are means of the contributing VIIRS
-pixels inside a 3.9 km cell. Moving the offset costs about 0.97 km per quarter cell, linearly.
+i a ZERO-BASED array index. Residual 0.34 km, flat across the whole swath. Moving the offset
+costs about 0.97 km per quarter cell, linearly, so the offset is sharply determined regardless of
+what the along-track term is doing. That 0.34 km floor is an ALONG-TRACK effect, not cross-track
+scatter: it is what the nominal 15 deg/hr Earth-rotation rate costs over the pass, and fitting one
+along-track degree of freedom removes it (verification/verify_vgac_alongtrack.py). An earlier
+version of this docstring explained it as sub-cell scatter from the stored coordinates being means
+of contributing VIIRS pixels. Neither half of that is established.
 Two nearby conventions are therefore wrong:
   - (i - 401 + 0.5), which this library used before this check, is half a cell out, 1.95 km.
   - (i - 401), the paper's Sect. 3.2 formula read with a zero-based i, is a full cell out,
     3.89 km. It is consistent only if i is one-based, which the paper does not state.
 
-RESULT 2, which forward formulation is authoritative. Against the file, the spherical rotation
-used here has a median error of 0.34 km, while the tutorial's ellipsoidal `vgac_to_earth` has a
-median error of 18 km. The spherical formulation is the one that reproduces the published data.
+RESULT 2, which forward formulation matches the archived data. Against the file, the spherical
+rotation used here lands within 0.34 km, while the tutorial's ellipsoidal `vgac_to_earth` is 18 km
+out. Both are computed with the same nominal rate, so the 50-fold gap is a property of the
+formulations rather than of the along-track term, and the spherical one is what the published data
+follows.
 This project earlier described the gap between them as a tutorial-internal inconsistency
 rather than an error in the archived data, and offered no evidence for that. The measurement
 here establishes the direction with evidence.
@@ -123,7 +129,8 @@ def main():
           f"(residual {min(medians):.3f} km), library uses i - {geo.nadir_index}")
     assert best == 400.0, f"the file says the offset is {best}, not 400"
     assert geo.nadir_index == 400, "library nadir_index disagrees with the fitted offset"
-    assert min(medians) < 0.6, "best residual is larger than the expected sub-cell scatter"
+    assert min(medians) < 0.6, \
+        "best residual is larger than the along-track cost of the nominal rotation rate"
 
     # RESULT 2: which forward formulation reproduces the file
     rot_lat = (ii - geo.nadir_index) * geo.cell_size_deg
@@ -137,7 +144,7 @@ def main():
           f"tutorial vgac_to_earth {err_ellipsoid:.3f} km")
     assert err_spherical < 0.6, "the spherical rotation no longer reproduces the file"
     assert err_ellipsoid > 5.0 * err_spherical, \
-        "vgac_to_earth is no longer clearly worse, re-examine which formulation is authoritative"
+        "vgac_to_earth is no longer clearly worse, re-examine which formulation matches the data"
 
     # RESULT 3: inverse recovery from the file's own coordinates, both implementations
     sub = slice(0, 400)   # the inverse is exhaustive by design, so keep the sample modest

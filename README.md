@@ -54,22 +54,36 @@ than a reproduction. Predicting VIIRS geolocation from scan index alone gives ab
 onboard aggregation makes the sampling non-uniform across the scan, and that figure is not claimed
 as a result. Every other row is a reproduction.
 
+None of these figures is corroborated by continuous integration. The CI suite is synthetic: it
+covers the mathematics and the package install, and installs neither netCDF4 nor any granule. The
+table comes from running the `verification/` scripts against real files locally.
+
 The VGAC row is in metres because the stored coordinates for this resampled product are
-consistent with the analytic mapping once one orbit-specific rotation rate is fitted. Fitting that
-rate on the first half of the orbit and scoring on the second gives a held-out median of 0.4 m, and
+consistent with the analytic mapping once ONE along-track degree of freedom is fitted. Fitting it
+on the first half of the orbit and scoring on the second gives a held-out median of 0.4 m, and
 scoring all 8260713 valid pixels gives 0.3 m, against a float32 storage quantum of 0.4 m.
 
 Read the two VGAC numbers as answers to different questions. 0.3 m is the reconstruction error
-after fitting one scalar from the orbit itself. 0.3326 km is the error using the nominal 15.0
-degrees per hour, where this orbit wants 14.994075 and the difference accumulates 1.1 km of
-longitude over the pass.
+after fitting that one parameter from the orbit. 0.3326 km is the error with the along-track term
+left at the nominal 15 degrees per hour.
 
-What this does not show is how the product was generated. Agreement at storage precision is
-consistent with the coordinates having been produced by this mapping, and it does not establish
-that they were, nor that 14.994075 is a parameter the producer holds explicitly rather than a value
-the fit uses to absorb longitudinal drift. Confirming that requires the production algorithm. What
-is certain either way is that the file does not store the rate, so its coordinates cannot be
-reproduced from the file alone. See `verification/verify_vgac_rotation_rate.py`.
+Two limits on what that shows, both worth stating plainly.
+
+It does not show how the product was generated. Agreement at storage precision is consistent with
+the coordinates having been produced by this mapping and does not establish that they were.
+
+And the fitted parameter is not identifiable as an Earth-rotation rate from one orbit. The scan
+time in this product is exactly linear in scan index, so the Earth-fixed along-track angle depends
+only on the combination `scan_step - rate * (hours per scan)`. A rate of 14.994075 with a scan step
+of 360/n_scan, and the nominal 15.0 with a scan step of 0.034908370207, differ by about 1e-18
+degrees across the whole orbit. They are the same model written two ways. The defensible statement
+is that one fitted along-track degree of freedom reproduces the orbit, and the identifiable
+quantity is the per-scan Earth-fixed along-track angle rather than its decomposition into a scan
+step and a rotation rate. See `verification/verify_vgac_alongtrack.py`.
+
+What the file does not carry is any value for that along-track term. Its stored coordinates cannot
+be regenerated from its stated mapping parameters alone, without either fitting against the stored
+latitude and longitude or obtaining the parameter externally.
 
 ## Install
 

@@ -1,6 +1,8 @@
 """Public test suite: the forward and inverse maps, and construction validation.
 
-Runs without any data files. The verification/ scripts cover agreement with real products.
+Runs without any data files. These tests are synthetic and cover the mathematics and the package
+install only. Agreement with real products is measured by the verification/ scripts, which need
+granules this suite never downloads, so a green run here does not corroborate those figures.
 """
 import numpy as np
 import pytest
