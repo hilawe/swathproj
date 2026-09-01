@@ -35,7 +35,7 @@ docstring). Measured against real products:
 
 | instrument | platform | geometry | test | median residual |
 |---|---|---|---|---|
-| VGAC | Suomi-NPP | cross-track, resampled | full mapping | 0.3 m |
+| VGAC | NOAA-20 | cross-track, resampled | full mapping | 0.3 m |
 | AVHRR GAC L1C | Metop-C | cross-track, native | radial profile | 3.7 km |
 | VIIRS SDR | NOAA-20 | cross-track, native | radial profile, file zenith | 0.3 km |
 | ATMS FCDR L1C | Suomi-NPP | cross-track, native | radial profile | 7.2 km |
@@ -54,14 +54,22 @@ than a reproduction. Predicting VIIRS geolocation from scan index alone gives ab
 onboard aggregation makes the sampling non-uniform across the scan, and that figure is not claimed
 as a result. Every other row is a reproduction.
 
-The VGAC row is metres rather than kilometres because for a resampled product the stored
-coordinates are the analytic mapping's own output, not an independent geolocation the model
-approximates. Fitting the Earth-rotation rate on the first half of the orbit and scoring on the
-second gives a held-out median of 0.4 m, and scoring on all 8260713 valid pixels gives 0.3 m,
-against a float32 storage quantum of 0.4 m. The rate matters: this orbit requires 14.994075 degrees
-per hour, and the nominal 15.0 accumulates 1.1 km of longitude error over the pass. The file does
-not store the rate, so its coordinates cannot be reproduced from the file alone. See
-`verification/verify_vgac_rotation_rate.py`.
+The VGAC row is in metres because the stored coordinates for this resampled product are
+consistent with the analytic mapping once one orbit-specific rotation rate is fitted. Fitting that
+rate on the first half of the orbit and scoring on the second gives a held-out median of 0.4 m, and
+scoring all 8260713 valid pixels gives 0.3 m, against a float32 storage quantum of 0.4 m.
+
+Read the two VGAC numbers as answers to different questions. 0.3 m is the reconstruction error
+after fitting one scalar from the orbit itself. 0.3326 km is the error using the nominal 15.0
+degrees per hour, where this orbit wants 14.994075 and the difference accumulates 1.1 km of
+longitude over the pass.
+
+What this does not show is how the product was generated. Agreement at storage precision is
+consistent with the coordinates having been produced by this mapping, and it does not establish
+that they were, nor that 14.994075 is a parameter the producer holds explicitly rather than a value
+the fit uses to absorb longitudinal drift. Confirming that requires the production algorithm. What
+is certain either way is that the file does not store the rate, so its coordinates cannot be
+reproduced from the file alone. See `verification/verify_vgac_rotation_rate.py`.
 
 ## Install
 

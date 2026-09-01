@@ -1,4 +1,4 @@
-"""The VGAC stored coordinates are the analytic mapping's output, to the file's storage precision.
+"""The VGAC stored coordinates match the analytic mapping to the file's storage precision.
 
 Run from the repo root with the project venv:
 
@@ -6,10 +6,17 @@ Run from the repo root with the project venv:
 
 WHY THIS EXISTS. The proposal reported a VGAC residual of about 0.33 km and described it as model
 error, and the coordinate-semantics analysis was built on the premise that the mapping and the
-stored coordinates disagree at the kilometre scale by design. Neither is true. The entire residual
-came from the library using the nominal Earth-rotation rate of 15.0 degrees per hour instead of the
-rate this orbit requires. With that one scalar corrected the mapping reproduces every stored
-coordinate in the file to about 0.3 m, which is the float32 quantum of the stored values.
+stored coordinates disagree at the kilometre scale by design. That residual is accounted for by the
+library using the nominal Earth-rotation rate of 15.0 degrees per hour instead of the rate this
+orbit requires. With that one scalar fitted, the mapping matches every stored coordinate in the file
+to about 0.3 m, which is the float32 quantum of the stored values.
+
+WHAT IT DOES NOT SHOW. Agreement at storage precision is consistent with the coordinates having been
+produced by this mapping. It does not establish that they were, and it does not establish that
+14.994075 deg/hr is a parameter the producer holds explicitly rather than a value this fit uses to
+absorb longitudinal drift. Only the production algorithm settles that. Both numbers below are real
+and answer different questions: 0.3 m is the reconstruction error after fitting the rate from the
+orbit, and 0.3326 km is the error using the nominal 15.0.
 
 WHAT MAKES THIS EVIDENCE RATHER THAN A FIT. The rate is fitted on the FIRST HALF of the scans and
 scored on the SECOND HALF, which the fit never saw, and then on every valid pixel in the file.
@@ -136,8 +143,9 @@ def main():
         f"error alone predicts {predicted_km:.3f} km. The published figure is then NOT fully "
         f"explained by the rate, and the claim that none of it is physical does not hold.")
 
-    print("\nvgac rotation rate: the stored coordinates are the mapping's own output, and the "
-          "previously published residual is explained entirely by the nominal rate constant")
+    print("\nvgac rotation rate: the stored coordinates match the mapping to storage precision "
+          "once one orbit-specific rate is fitted, and the previously published kilometre-scale "
+          "residual is accounted for by the nominal rate constant")
     return 0
 
 
