@@ -1,48 +1,48 @@
-"""One fitted along-track degree of freedom reproduces a VGAC orbit to its storage precision.
+"""Is the fitted along-track parameter identifiable, and does it reproduce a VGAC orbit?
 
 Run from the repo root with the project venv:
 
     .venv/bin/python verification/verify_vgac_alongtrack.py
 
-WHAT THIS MEASURES, AND WHAT IT REFUSES TO NAME. The library previously left the Earth-rotation
-rate at its nominal 15 degrees per hour and reported the resulting 0.33 km disagreement with the
-stored coordinates as this model's accuracy. Fitting a single along-track degree of freedom instead
-brings the agreement to about 0.3 m, which is the float32 quantum of the stored values. That result
-is real and is asserted below on a held-out half of the orbit.
+THE QUESTION. Fitting one along-track parameter brings the mapping into agreement with the stored
+coordinates at about 0.3 m, against a float32 storage quantum of 0.4 m. Before that parameter may
+be called an Earth-rotation rate, it has to be shown that the data can tell it apart from the other
+along-track quantity in the model, the per-scan angular step. If a compensating change in the step
+reproduced the orbit equally well, the fit would determine only a combination and the name would be
+unearned.
 
-The thing that is fitted CANNOT be called an Earth-rotation rate on this evidence. The Earth-fixed
-along-track angle of scan j is
+THE CONCERN IS REAL FOR THE ABSTRACT FORM. Write the Earth-fixed along-track angle as
 
-    rot_lon(j) = j * scan_step - rate * t(j)
+    along(j) = j * scan_step - rate * t(j)
 
-and in this product t(j) is exactly linear in j: t = a + b*j with the departure from that line at
-the 1e-12 second level and a itself zero to floating point. Substituting,
+with both terms in one angular variable. In this product t is exactly linear in j (worst departure
+8.2e-13 s, intercept -2.3e-16 h, zero to floating point), so that expression collapses to
+`(-rate*a) + j*(scan_step - rate*b)` and only the combined slope is determined. Part 2 below
+confirms that: the two parameterisations evaluate within 1e-13 degrees of each other.
 
-    rot_lon(j) = (-rate * a) + j * (scan_step - rate * b)
+BUT THIS MODEL DOES NOT HAVE THAT FORM, and Part 3 measures the difference. The scan step is a
+ROTATED-FRAME longitude applied BEFORE the rotated-pole transformation, so changing it moves a cell
+ALONG THE GROUND TRACK, altering geographic latitude and longitude together. The rate is subtracted
+from GEOGRAPHIC longitude AFTER the transformation, a pure zonal shear that leaves latitude
+untouched. Those are different displacements, and latitude is what separates them. Measured on the
+reference orbit:
 
-so the data constrain only the intercept and the combined slope. With a = 0 the intercept carries
-nothing, and a change in `rate` is indistinguishable from a compensating change in `scan_step`.
-This script exhibits the degeneracy explicitly: the fitted-rate parameterisation and a nominal-rate
-parameterisation with an adjusted scan step agree to about 1e-18 degrees across the whole orbit,
-which is 1e-13 metres at the equator. They are the same model written two ways.
+    scan_step = 360/n_scan, fitted rate 14.994075     ->    0.34 m
+    scan_step = 360/n_scan, nominal rate 15.0         ->  330.72 m
+    compensating step from the algebra, nominal 15.0  ->  808.39 m
 
-CONSEQUENCES worth carrying into the proposal.
+The substitution the abstract algebra prescribes makes the fit WORSE than leaving the rate at its
+nominal value. The parameters are not interchangeable in this model, so the rate is identifiable
+from a single orbit and the fitted value is a property of the orbit rather than of a convention.
 
-- The defensible finding is "one fitted along-track degree of freedom reproduces this orbit to
-  storage precision", not "the orbit requires a rotation rate of 14.994075 deg/hr".
-- The identifiable quantity is the per-scan Earth-fixed along-track angle itself. Decomposing it
-  into an inertial scan step and a rotation rate introduces a parameter the data do not determine,
-  which is an argument for binding the combined angle in any encoding.
-- Fitting the value separately on more orbits would not resolve this, since the degeneracy is
-  present in every orbit with a linear time axis. What would test it is TRANSFER: fit on one orbit
-  and apply the value unchanged to another.
-- The earlier puzzle over why 14.994075 matches neither the sidereal rate nor the sun-synchronous
-  nominal dissolves. The number depends on having assumed scan_step = 360/n_scan exactly, and it
-  moves if that assumption moves.
+WHAT REMAINS UNSETTLED. That the parameter is identifiable does not establish that the producer
+holds it, or that it is what generates the archived coordinates. Agreement at storage precision is
+consistent with that and does not demonstrate it. A cross-orbit transfer test, fitting on one orbit
+and applying the value unchanged to another, is the next discriminating measurement.
 
-SCOPE. One orbit, one platform (NOAA-20, from the archive path and orbit series, not from the
-file's own platform attribute, which is wrong), one date. Nothing here bears on the native
-cross-track or conical products.
+SCOPE. One orbit, one platform (NOAA-20, from the archive path and orbit series, not the file's own
+platform attribute, which is wrong), one date. Nothing here bears on the native cross-track or
+conical products.
 """
 
 from __future__ import annotations
@@ -100,21 +100,63 @@ def main():
         f"the scan time departs from a straight line by {departure_s:.2e} s. The identifiability "
         f"argument below assumes exact linearity and no longer applies.")
 
-    # --- PART 2: the degeneracy, shown by construction --------------------------------------
-    step_a = geo._scan_angd                       # 360 / n_scan
-    slope = step_a - EXPECTED_FITTED * b          # the identifiable combination
-    step_b = slope + NOMINAL_RATE * b             # the step that makes the NOMINAL rate fit
-    worst_deg = abs((-NOMINAL_RATE * a) - (-EXPECTED_FITTED * a)) + \
-        abs((step_b - NOMINAL_RATE * b) - slope) * (n_scan - 1)
-    print(f"parameterisation A: scan_step={step_a:.12f}, rate={EXPECTED_FITTED}")
-    print(f"parameterisation B: scan_step={step_b:.12f}, rate={NOMINAL_RATE}")
-    print(f"   worst along-track difference over the orbit = {worst_deg:.2e} deg "
-          f"= {worst_deg * 111190:.2e} m")
-    assert worst_deg < 1e-12, (
-        f"the two parameterisations differ by {worst_deg:.2e} deg, so they are NOT degenerate "
-        f"and the rate may be identifiable after all. Re-derive before claiming otherwise.")
+    # --- PART 2: the ABSTRACT form is degenerate, which is the concern worth testing ------
+    step_a, rate_a = geo._scan_angd, EXPECTED_FITTED
+    slope = step_a - rate_a * b
+    step_b, rate_b = slope + NOMINAL_RATE * b, NOMINAL_RATE
 
-    # --- PART 3: the reconstruction result, fitted on one half and scored on the other -------
+    along_a = idx * step_a - rate_a * scan_time
+    along_b = idx * step_b - rate_b * scan_time
+    eval_diff = float(np.abs((along_a - along_b + 180.0) % 360.0 - 180.0).max())
+    theory_deg = abs(rate_a - rate_b) * abs(a)
+    print(f"abstract along-track form, A: step={step_a:.12f} rate={rate_a}")
+    print(f"                           B: step={step_b:.12f} rate={rate_b}")
+    print(f"   theoretical remainder (via the intercept) = {theory_deg:.2e} deg")
+    print(f"   double-precision evaluation difference    = {eval_diff:.2e} deg")
+    assert theory_deg < 1e-15, (
+        f"theoretical remainder {theory_deg:.2e} deg: the intercept is large enough to separate "
+        f"the terms even in the abstract form, so Part 2's premise no longer holds")
+    assert eval_diff < 1e-10, (
+        f"the abstract forms differ by {eval_diff:.2e} deg, so they are NOT degenerate and this "
+        f"script's framing needs re-deriving")
+
+    # --- PART 3: the ACTUAL model is not degenerate, and this is the identifiability result -
+    # The step enters as a rotated-frame longitude before the rotated-pole transform, and the rate
+    # is subtracted from geographic longitude after it. A step change therefore moves a cell along the
+    # ground track (latitude AND longitude) while a rate change is a pure zonal shear. If the
+    # substitution Part 2 licenses were also valid here, parameterisation B would fit as well as A.
+    valid = np.isfinite(lat) & np.isfinite(lon) & (np.abs(lat) <= 90)
+    rng = np.random.default_rng(1)
+    probe_j = rng.integers(0, n_scan, 30000)
+    probe_i = rng.integers(0, n_pixel, 30000)
+    keep = valid[probe_j, probe_i]
+    probe_j, probe_i = probe_j[keep], probe_i[keep]
+
+    def median_residual(step, rate, jj=None, ii=None):
+        jj = probe_j if jj is None else jj
+        ii = probe_i if ii is None else ii
+        la, lo = rotated_to_geographic((ii - geo.nadir_index) * geo.cell_size_deg,
+                                       jj * step, pole_lat, pole_lon, npgl)
+        lo = (lo - rate * scan_time[jj] + 180.0) % 360.0 - 180.0
+        return float(np.median(great_circle_km(lat[jj, ii], lon[jj, ii], la, lo)))
+
+    m_fitted = median_residual(step_a, rate_a)
+    m_nominal = median_residual(step_a, NOMINAL_RATE)
+    m_substituted = median_residual(step_b, rate_b)
+    print(f"\nactual model, median residual:")
+    print(f"   step=360/n_scan, fitted rate {rate_a}      {m_fitted * 1000:9.2f} m")
+    print(f"   step=360/n_scan, nominal rate {NOMINAL_RATE}          {m_nominal * 1000:9.2f} m")
+    print(f"   compensating step, nominal rate {NOMINAL_RATE}        {m_substituted * 1000:9.2f} m")
+    assert m_substituted > 1.5 * m_nominal, (
+        f"the compensating step reaches {m_substituted * 1000:.1f} m against {m_nominal * 1000:.1f} m "
+        f"for simply leaving the rate nominal. The substitution is supposed to make things WORSE, "
+        f"because the step also moves latitude. If it does not, the two parameters may be "
+        f"interchangeable in the real model and the rate would be unidentifiable.")
+    assert m_fitted < 0.01 * m_substituted, (
+        f"the fitted rate ({m_fitted * 1000:.1f} m) is not decisively better than the algebraic "
+        f"substitution ({m_substituted * 1000:.1f} m), so the rate is not clearly identifiable")
+
+    # --- PART 4: the reconstruction result, fitted on one half and scored on the other -------
     def residual(jj, ii, rate):
         rot_lat = (ii - geo.nadir_index) * geo.cell_size_deg
         rot_lon = jj * geo._scan_angd
@@ -122,8 +164,6 @@ def main():
         lo = (lo - rate * scan_time[jj] + 180.0) % 360.0 - 180.0
         return great_circle_km(lat[jj, ii], lon[jj, ii], la, lo)
 
-    valid = np.isfinite(lat) & np.isfinite(lon) & (np.abs(lat) <= 90)
-    rng = np.random.default_rng(1)
     half = n_scan // 2
 
     def sample(lo_scan, hi_scan, n):
@@ -156,6 +196,9 @@ def main():
     print(f"FULL ARRAY n={full.size}: median {np.median(full) * 1000:.1f} m, "
           f"max {full.max() * 1000:.1f} m  (float32 quantum {quantum_m:.1f} m)")
     assert np.median(full) < 0.002, "full-array median is not at storage precision"
+    assert full.max() < 0.010, (
+        f"full-array MAX is {full.max() * 1000:.1f} m. The median can stay at storage precision "
+        f"while a minority of cells regress, so the tail is asserted separately.")
 
     nominal = residual(jj, ii, NOMINAL_RATE)
     print(f"with the nominal {NOMINAL_RATE}: median {np.median(nominal):.4f} km, "
@@ -164,9 +207,10 @@ def main():
         "the nominal setting no longer reproduces the previously published kilometre-scale "
         "residual, so the explanation for that figure is no longer demonstrated")
 
-    print("\nvgac along-track: one fitted along-track degree of freedom reproduces this orbit to "
-          "storage precision, and that degree of freedom is NOT identifiable as a rotation rate "
-          "from a single orbit with a linear time axis")
+    print("\nvgac along-track: one fitted along-track parameter reproduces this orbit to storage "
+          "precision, and it IS identifiable as a zonal shear rate. The abstract additive form is "
+          "degenerate, but this model applies the scan step before the rotated-pole transform, so "
+          "the step also moves latitude and cannot absorb a rate change.")
     return 0
 
 

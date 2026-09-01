@@ -45,20 +45,27 @@ here establishes the direction with evidence.
 RESULT 3, a consequence for the published inverse. `earth_to_vgac` uses NADIR = 401 with
 half-cell centres, which places the file's true cell centres exactly on ITS cell boundaries.
 Its output at real cell centres is therefore ambiguous, tipping either way on floating-point
-rounding, and it recovers the exact cell for only about half of them. This library recovers
-about 99.8%.
+rounding, and it recovers the exact cell for only about half of them. This library recovers every
+cell in the sampled set on the reference orbit (100.0%, against 50.2%).
 
 None of this is a criticism of the dataset itself. The geolocation in the file is
 self-consistent, and what differs is the indexing convention assumed by the published helper code
 and by the formula as literally written in the preprint.
 
-NOTE, 2026-09-01. The sub-kilometre residuals this script reports are NOT model error. They come
-from the nominal Earth-rotation rate of 15.0 degrees per hour, and this orbit requires 14.994075.
-With
-that corrected the mapping reproduces the stored coordinates to about 0.3 m across the whole file.
-This script is kept as-is because its subject is the cross-track offset and the choice of forward
-formulation, both of which the rate does not affect. For the rate itself see
-verification/verify_vgac_rotation_rate.py.
+NOTE, 2026-09-01. The sub-kilometre residuals this script reports are an ALONG-TRACK effect, not
+this model's accuracy. They are what the along-track term costs with the Earth-rotation rate left
+at its nominal 15 degrees per hour. Fitting one along-track degree of freedom brings agreement with
+the stored coordinates to about 0.3 m across the whole file.
+
+That fitted quantity is separable from the per-scan angular step, because the step is applied
+before the rotated-pole transformation and so moves latitude too, while the rate is a pure zonal
+shear applied after it. See verification/verify_vgac_alongtrack.py, which measures all three
+parameterisations. What remains unestablished is whether the producer holds this value, which
+agreement at storage precision is consistent with and does not demonstrate.
+
+This script is kept because its subject is the cross-track offset and the choice of forward
+formulation. Both are computed with the same along-track setting throughout, so neither conclusion
+depends on which setting that is.
 """
 
 import sys

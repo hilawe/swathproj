@@ -39,9 +39,11 @@ Read that 0.34 km as a comparison baseline, not as this model's accuracy. It is 
 along-track term costs when the Earth-rotation rate is left at its nominal 15 degrees per hour.
 Fitting one along-track degree of freedom against the same orbit brings the agreement to about
 0.3 m, which is the float32 quantum of the stored coordinates
-(``verification/verify_vgac_alongtrack.py``). That fitted quantity is NOT identifiable as a
-rotation rate from a single file, because the scan time is exactly linear in scan index, so a
-change in rate and a change in scan step are indistinguishable.
+(``verification/verify_vgac_alongtrack.py``). That fitted quantity IS separable from the per-scan
+angular step it might be confused with, because the step is applied as a rotated-frame longitude
+before the rotated-pole transformation and so moves latitude as well, while the rate is a pure
+zonal shear applied after it. Substituting a compensating step at the nominal rate fits worse than
+leaving the rate nominal, 804 m against 329 m, so the parameters are not interchangeable here.
 """
 
 from .geometry import SwathGeometry

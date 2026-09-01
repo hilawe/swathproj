@@ -72,14 +72,15 @@ Two limits on what that shows, both worth stating plainly.
 It does not show how the product was generated. Agreement at storage precision is consistent with
 the coordinates having been produced by this mapping and does not establish that they were.
 
-And the fitted parameter is not identifiable as an Earth-rotation rate from one orbit. The scan
-time in this product is exactly linear in scan index, so the Earth-fixed along-track angle depends
-only on the combination `scan_step - rate * (hours per scan)`. A rate of 14.994075 with a scan step
-of 360/n_scan, and the nominal 15.0 with a scan step of 0.034908370207, differ by about 1e-18
-degrees across the whole orbit. They are the same model written two ways. The defensible statement
-is that one fitted along-track degree of freedom reproduces the orbit, and the identifiable
-quantity is the per-scan Earth-fixed along-track angle rather than its decomposition into a scan
-step and a rotation rate. See `verification/verify_vgac_alongtrack.py`.
+The fitted parameter is separable from the per-scan angular step, which is the other along-track
+quantity it could be confused with. Written abstractly as `j*scan_step - rate*t(j)`, with both
+terms in one angular variable and a time axis linear in scan index, the two would be degenerate.
+This model does not have that form: the scan step is a rotated-frame longitude applied BEFORE the
+rotated-pole transformation, so changing it moves a cell along the ground track and alters latitude
+as well, while the rate is subtracted from geographic longitude AFTER it, a pure zonal shear.
+Latitude separates them. On the reference orbit the fitted rate gives 0.34 m, leaving the rate
+nominal gives 330 m, and the compensating step the abstract algebra prescribes gives 804 m, worse
+than doing nothing. See `verification/verify_vgac_alongtrack.py`, which asserts all three.
 
 What the file does not carry is any value for that along-track term. Its stored coordinates cannot
 be regenerated from its stated mapping parameters alone, without either fitting against the stored
