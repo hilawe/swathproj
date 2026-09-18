@@ -110,6 +110,15 @@ NOMINAL_RATE = 15.0
 EXPECTED_FITTED = 14.9940784   # under the scan_step = 360/n_scan convention, and only under it
 RATE_TOL = 5e-6               # the estimate is reproducible to well inside this
 
+# The storage-spacing scale in meters, measured by the computation near the end of this script and
+# asserted against it there, so this constant cannot drift away from the thing it names. The
+# regression thresholds are expressed as multiples of it rather than as round numbers. A round
+# number is tied to nothing and silently tolerates a large regression: the previous guards allowed
+# 2 m and 10 m against residuals of 0.18 m and 0.95 m, so results could degrade roughly tenfold
+# and still pass.
+STORAGE_SPACING_M = 0.435
+SCALE_KM = STORAGE_SPACING_M / 1000.0
+
 
 def great_circle_km(lat1, lon1, lat2, lon2):
     d2r = np.pi / 180.0
@@ -117,6 +126,21 @@ def great_circle_km(lat1, lon1, lat2, lon2):
     dlon = (lon2 - lon1) * d2r
     h = np.sin((a2 - a1) / 2) ** 2 + np.cos(a1) * np.cos(a2) * np.sin(dlon / 2) ** 2
     return 2 * np.arcsin(np.sqrt(np.clip(h, 0, 1))) * EARTH_KM
+
+
+def float32_half_ulp_displacement_m(latitude, longitude):
+    """A reproducible storage-spacing scale, not a geolocation error floor.
+
+    Add half the absolute float32 unit-in-the-last-place (ULP) in each angular
+    component, retaining the perturbations in float64, then measure their joint
+    displacement on the same sphere used for residual scoring.
+    """
+    lat32 = np.asarray(latitude, dtype=np.float32)
+    lon32 = np.asarray(longitude, dtype=np.float32)
+    lat64, lon64 = lat32.astype(float), lon32.astype(float)
+    dlat = 0.5 * np.abs(np.spacing(lat32).astype(float))
+    dlon = 0.5 * np.abs(np.spacing(lon32).astype(float))
+    return 1000.0 * great_circle_km(lat64, lon64, lat64 + dlat, lon64 + dlon)
 
 
 def main():
@@ -235,7 +259,7 @@ def main():
             f"the +{360 * k} deg alias no longer reproduces the objective exactly, so the aliasing "
             f"statement in this file's header is wrong")
     print(f"   alias check: rms(step) == rms(step +/- 360) to <1e-12, so the claim is LOCAL "
-          f"identifiability within 0 < step <= 1 deg/scan, not global uniqueness")
+          f"identifiability near 360/n_scan within the searched bracket, not global uniqueness")
 
     rng = np.random.default_rng(1)
     probe_j = rng.integers(0, n_scan, 30000)
@@ -323,10 +347,11 @@ def main():
 
     held = residual(test_j, test_i, fitted)
     ho_median = float(np.median(held))
-    print(f"HELD-OUT scans {half}..{n_scan}: median {ho_median * 1000:.2f} m, "
+    print(f"HELD-OUT scans [{half}, {n_scan}): median {ho_median * 1000:.2f} m, "
           f"p95 {np.percentile(held, 95) * 1000:.2f} m, max {held.max() * 1000:.2f} m")
-    assert ho_median < 0.002, (
-        f"held-out median is {ho_median:.4f} km, so the fit does not transfer even across halves "
+    assert ho_median < SCALE_KM, (
+        f"held-out median is {ho_median * 1000:.2f} m, at or above the {STORAGE_SPACING_M} m "
+        f"storage-spacing scale, so the fit does not transfer even across halves "
         f"of the same orbit")
 
     if FAST:
@@ -336,20 +361,38 @@ def main():
 
     jj, ii = np.nonzero(valid)
     full = residual(jj, ii, fitted)
-    quantum_m = float(np.spacing(np.float32(60.0)) * 111.19 * 1000)
     print(f"FULL ARRAY n={full.size}: median {np.median(full) * 1000:.2f} m, "
-          f"max {full.max() * 1000:.2f} m  (latitude-only float32 ulp {quantum_m:.2f} m, and "
-          f"the 2-D half-ulp displacement is 0.43 m median)")
-    assert np.median(full) < 0.002, "full-array median is not at storage precision"
-    assert full.max() < 0.010, (
-        f"full-array MAX is {full.max() * 1000:.1f} m. The median can stay at storage precision "
-        f"while a minority of cells regress, so the tail is asserted separately.")
+          f"p95 {np.percentile(full, 95) * 1000:.2f} m, max {full.max() * 1000:.2f} m")
+    if any(ds[name].dtype != np.dtype("float32") for name in ("lat", "lon")):
+        raise ValueError("The storage-spacing calculation requires float32 stored coordinates")
+    # This generator does not consume the fitting or held-out sampling sequence.
+    quantum_rng = np.random.default_rng(23)
+    selected = quantum_rng.integers(0, jj.size, 400000)
+    displacement_m = float32_half_ulp_displacement_m(
+        lat[jj[selected], ii[selected]], lon[jj[selected], ii[selected]])
+    print(f"STORAGE-SPACING SCALE, n={selected.size}, seed=23: "
+          f"median {np.median(displacement_m):.3f} m, "
+          f"p95 {np.percentile(displacement_m, 95):.3f} m, "
+          f"max {displacement_m.max():.3f} m")
+    print("   Positive half-ULP perturbation in both angular components. "
+          "This is a storage-spacing scale, not an error floor or accuracy estimate.")
+    assert abs(float(np.median(displacement_m)) - STORAGE_SPACING_M) < 0.01, (
+        f"the measured storage-spacing median is {np.median(displacement_m):.3f} m, not the "
+        f"recorded {STORAGE_SPACING_M} m the thresholds are expressed against. The constant has "
+        f"drifted from the measurement and must be re-recorded before it is trusted.")
+    assert np.median(full) < SCALE_KM, (
+        f"full-array median is {np.median(full) * 1000:.2f} m, at or above the "
+        f"{STORAGE_SPACING_M} m storage-spacing scale")
+    assert full.max() < 3 * SCALE_KM, (
+        f"full-array MAX is {full.max() * 1000:.2f} m, above three times the "
+        f"{STORAGE_SPACING_M} m storage-spacing scale. The median can stay low while a minority "
+        f"of cells regress, so the tail is asserted separately.")
 
     nominal = residual(jj, ii, NOMINAL_RATE)
     print(f"with the nominal {NOMINAL_RATE}: median {np.median(nominal):.4f} km, "
           f"max {nominal.max():.4f} km")
     assert np.median(nominal) > 0.1, (
-        "the nominal setting no longer reproduces the previously published kilometre-scale "
+        "the nominal setting no longer reproduces the previously published kilometer-scale "
         "residual, so the explanation for that figure is no longer demonstrated")
 
     print("\nvgac along-track: one fitted along-track parameter reproduces this orbit to storage "

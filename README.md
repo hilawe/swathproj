@@ -4,16 +4,15 @@ Analytic geolocation for Low Earth Orbit satellite scanning swaths.
 
 By Hilawe Semunegus, NOAA NCEI.
 
-Most polar-orbiting swath products record a latitude and longitude for every pixel. That says
-where each observation is, but not the relationship between array position and ground position,
-so software cannot ask which pixel is nearest a location, subset by geography, or check the stored
-coordinates against the geometry that produced them without reading the whole coordinate array.
+Many polar-orbiting swath products store latitude and longitude for each pixel. These arrays
+locate the observations. An analytic description can also express how array position relates to
+ground position, using compact grid parameters and per-scan inputs.
 
-`swathproj` provides that relationship as a small analytic model. The mapping is a rotated-pole
-transform, whose equator follows the satellite ground track, composed with a longitude shear
-proportional to elapsed observation time for Earth rotation during the orbit. The rotation
-stage is exactly the netCDF Climate and Forecast `rotated_latitude_longitude` grid mapping, so
-its pole parameters can be emitted directly and read by any CF-aware tool.
+`swathproj` implements a spherical model that composes a rotated-pole transform with a longitude
+shear proportional to elapsed observation time. The rotation stage corresponds to the network
+Common Data Form (netCDF) Climate and Forecast (CF) `rotated_latitude_longitude` grid mapping.
+Its pole parameters can be used by software that implements that mapping. The time-dependent
+composition requires additional logic and is not yet a standardized CF mapping.
 
 ## Scan geometries
 
@@ -58,12 +57,13 @@ None of these figures is corroborated by continuous integration. The CI suite is
 covers the mathematics and the package install, and installs neither netCDF4 nor any granule. The
 table comes from running the `verification/` scripts against real files locally.
 
-The VGAC row is in metres because the stored coordinates for this resampled product are
+The VGAC row is in meters because the stored coordinates for this resampled product are
 consistent with the analytic mapping once ONE along-track degree of freedom is fitted. Fitting it
 on the first half of the orbit and scoring on the second gives a held-out median of 0.18 m, and
-scoring all 8260713 valid pixels gives 0.18 m. For scale, a half-ulp perturbation of both stored
-coordinates displaces a position by a median of 0.43 m, so the agreement is at the granularity the
-file can represent.
+scoring all 8260713 valid pixels gives 0.18 m. The same script measures a storage-spacing scale
+on 400000 sampled positions, with seed 23. A positive half-unit-in-the-last-place (ULP)
+perturbation in both float32 angular coordinates produces about 0.43 m median displacement.
+This is a scale for comparison, not a lower bound on residuals or a geolocation accuracy estimate.
 
 Read the two VGAC numbers as answers to different questions. 0.18 m is the reconstruction error
 after fitting that one parameter from the orbit. 0.3326 km is the error with the along-track term
