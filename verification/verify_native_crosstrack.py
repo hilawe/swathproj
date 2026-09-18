@@ -46,7 +46,7 @@ relation, in terms of the satellite zenith epsilon, is sin(epsilon) = k sin(thet
 METHOD. For a sample of scan lines it takes the observed cross-track profile, the signed central
 angle from the line's nadir pixel (the smallest satellite zenith) to every pixel, which is the
 great-circle distance divided by the Earth radius. It fits THREE models to that profile and reports
-each residual in kilometres.
+each residual in kilometers.
 
   equal-angle    gamma(i) = a * (i - nadir)                            linear in index
   pixel-index    gamma(i) = slant_range((i - nadir) * look_step, h)    from index + 2 params
@@ -320,7 +320,7 @@ def load(path):
         zen = get("SatelliteZenithAngle", "sensor_zenith_angle", "satellite_zenith_angle",
                   "sensor_zenith", "satellite_zenith")
         if "SCPosition" in grp.variables:
-            scp = np.ma.filled(grp["SCPosition"][:].astype(float), np.nan)  # ECEF metres per scan
+            scp = np.ma.filled(grp["SCPosition"][:].astype(float), np.nan)  # ECEF meters per scan
             if scp.ndim == 2 and scp.shape[1] == 3 and np.isfinite(scp).all():
                 true_alt = _geodetic_altitude_km(scp)
 

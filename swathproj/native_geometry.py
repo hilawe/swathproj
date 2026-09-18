@@ -27,7 +27,7 @@ which follows from sin(gamma + theta) = k * sin(theta).
 
 Altitude varies within a pass (about 37 km on the SSMIS granule measured in the conical work),
 and at the swath edge d(gamma)/d(h) is large enough that a constant altitude misplaces edge
-pixels by tens of kilometres, so ``altitude_km`` may be one value per scan, exactly as
+pixels by tens of kilometers, so ``altitude_km`` may be one value per scan, exactly as
 ``cone_radius_deg`` is per scan for the conical geometry.
 
 The rotated pole, the Earth-rotation shear, and the uniform along-track handling follow

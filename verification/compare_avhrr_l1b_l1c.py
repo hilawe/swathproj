@@ -291,7 +291,7 @@ def main():
     # ~3.6 km at step 0.2700 deg/GAC pixel and altitude 828-829 km, file zenith ~2.9 km,
     # onboard altitude 830.0 km) with headroom, per the set-from-clean-values rule. The L1B
     # zenith cap is far looser than the L1C's because the L1B stores angles quantized to
-    # 0.01 degree, which alone contributes kilometres at the swath edge.
+    # 0.01 degree, which alone contributes kilometers at the swath edge.
     print("\nComparison of recovered physics, L1B anchors (per GAC pixel) vs L1C pixels:")
     for name, s in results:
         step_pix = s["index_step_deg"] / ANCHOR_STEP_PIXELS

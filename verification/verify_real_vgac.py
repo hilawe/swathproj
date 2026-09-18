@@ -52,7 +52,7 @@ None of this is a criticism of the dataset itself. The geolocation in the file i
 self-consistent, and what differs is the indexing convention assumed by the published helper code
 and by the formula as literally written in the preprint.
 
-NOTE, 2026-09-01. The sub-kilometre residuals this script reports are an ALONG-TRACK effect, not
+NOTE, 2026-09-01. The sub-kilometer residuals this script reports are an ALONG-TRACK effect, not
 this model's accuracy. They are what the along-track term costs with the Earth-rotation rate left
 at its nominal 15 degrees per hour. Fitting one along-track degree of freedom brings agreement with
 the stored coordinates to about 0.3 m across the whole file.

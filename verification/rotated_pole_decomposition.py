@@ -22,7 +22,7 @@ VGAC rotation and by a textbook rotated-pole transform whose pole is derived, no
 compare. The rotated-longitude origin lam0 is found by a refining grid search, so its
 residual is solver-limited rather than fundamental. Where lam0 happens to land on a search
 node (the theta_o = 0 case), the agreement is 6e-14 degrees, machine precision, which is the
-real number. The other cases sit near 1e-6 degrees (sub-metre), limited by the lam0 grid.
+real number. The other cases sit near 1e-6 degrees (sub-meter), limited by the lam0 grid.
 
 Result observed 2026-08-12: worst-case agreement 2.2e-6 degrees, about 0.25 m on the ground,
 solver-limited. The VGAC rotation stage is the CF rotated_latitude_longitude transform.
