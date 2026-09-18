@@ -234,7 +234,7 @@ def fit_crosstrack_index(lat_row, lon_row, nadir_index):
     if g.size < 8:
         return {"rms_km": np.inf, "look_step_deg": np.nan, "fitted_altitude_km": np.nan}
 
-    # initialise the look-angle step from the edge central angle at a nominal altitude, then
+    # initialize the look-angle step from the edge central angle at a nominal altitude, then
     # narrow a 2-D grid over (look_step, altitude), both windows shrinking each pass.
     step_c = abs(central_angle_to_look_angle(np.abs(g).max(), 830.0)) / max(np.abs(o).max(), 1.0)
     step_w, h_c, h_w = step_c * 0.6, 800.0, 500.0   # first pass searches ~300-1300 km altitude
@@ -293,7 +293,7 @@ def load(path):
                  or Path(str(path)).name)
         # Determine the instrument FAMILY from the layout, the metadata, and the filename together,
         # and refuse an unknown one rather than defaulting to a regime. Defaulting would silently
-        # skip the uniform-step assertion for a sparsely-labelled uniform instrument.
+        # skip the uniform-step assertion for a sparsely-labeled uniform instrument.
         meta = (" ".join(str(getattr(ds, a, "")) for a in ("instrument", "platform", "title"))
                 + " " + Path(str(path)).name).upper()
         viirs_layout = "All_Data" in ds.groups or "geolocation_data" in ds.groups

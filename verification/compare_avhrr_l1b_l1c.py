@@ -134,7 +134,7 @@ def identify_satellite_zenith(ang):
 
     Candidates are the three slots of an interleaved (51, 3) layout and of a blocked (3, 51)
     layout. The satellite zenith is the unique candidate whose median cross-track profile is
-    V-shaped: minimum within a few anchors of the swath centre, both edges above 45 degrees,
+    V-shaped: minimum within a few anchors of the swath center, both edges above 45 degrees,
     all values within [0, 75], and near-symmetric. Anything else (solar zenith, azimuth) fails
     at least one of these on a full orbit. Raises unless exactly one candidate qualifies.
     """

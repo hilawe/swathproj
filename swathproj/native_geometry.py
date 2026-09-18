@@ -167,9 +167,9 @@ class NativeCrossTrackGeometry:
                     f"full_revolution=True but {self.n_scan} scans of {self._scan_angd} deg span "
                     f"{self.n_scan * self._scan_angd} deg, not 360")
 
-        # The FOOTPRINT boundaries, half a sample beyond the outer pixel centres, must stay inside
+        # The FOOTPRINT boundaries, half a sample beyond the outer pixel centers, must stay inside
         # the Earth limb at every scan's altitude and inside [-90, 90] of rotated latitude, or
-        # forward and inverse stop being inverses. Checking the centres alone lets a geometry
+        # forward and inverse stop being inverses. Checking the centers alone lets a geometry
         # construct whose outermost cell reaches past the limb.
         outer = max(self.nadir_index + 0.5, self.n_pixel - 0.5 - self.nadir_index)
         edge_look = self.look_angle_step_deg * outer

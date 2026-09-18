@@ -15,10 +15,10 @@ Verify the download by Content-Length, per the CSU playbook. Skips cleanly when 
 WHY A SECOND CONICAL INSTRUMENT. The SSMIS verification established that the orbit model is
 shared and that both the cone radius and the along-track angular spacing must be carried per
 scan. Those conclusions were drawn from one platform, DMSP, whose orbit is comparatively
-eccentric. This checks whether they generalise. AMSR2 flies on GCOM-W1, a different platform
+eccentric. This checks whether they generalize. AMSR2 flies on GCOM-W1, a different platform
 operated by a different agency, at a different altitude and with a less eccentric orbit.
 
-They do generalise. The de-rotated ground track flattens onto the rotated equator to within
+They do generalize. The de-rotated ground track flattens onto the rotated equator to within
 about 75 m, the conical forward map reproduces the file's own coordinates to about 3 km, and
 holding either quantity constant degrades that materially. The per-scan requirement is
 therefore a property of orbital eccentricity in general rather than a peculiarity of DMSP.

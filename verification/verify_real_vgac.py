@@ -20,7 +20,7 @@ producer actually published, so it can adjudicate between formulations. Two ques
 the published formulation are answered here.
 
 RESULT 1, the cross-track convention. Fitting the only free parameter, the cross-track offset,
-against the file's own coordinates gives a sharp minimum at cell centre = (i - 400) * beta with
+against the file's own coordinates gives a sharp minimum at cell center = (i - 400) * beta with
 i a ZERO-BASED array index. Residual 0.34 km, flat across the whole swath. Moving the offset
 costs about 0.97 km per quarter cell, linearly, so the offset is sharply determined regardless of
 what the along-track term is doing. That 0.34 km floor is an ALONG-TRACK effect, not cross-track
@@ -43,8 +43,8 @@ rather than an error in the archived data, and offered no evidence for that. The
 here establishes the direction with evidence.
 
 RESULT 3, a consequence for the published inverse. `earth_to_vgac` uses NADIR = 401 with
-half-cell centres, which places the file's true cell centres exactly on ITS cell boundaries.
-Its output at real cell centres is therefore ambiguous, tipping either way on floating-point
+half-cell centers, which places the file's true cell centers exactly on ITS cell boundaries.
+Its output at real cell centers is therefore ambiguous, tipping either way on floating-point
 rounding, and it recovers the exact cell for only about half of them. This library recovers every
 cell in the sampled set on the reference orbit (100.0%, against 50.2%).
 
@@ -60,7 +60,7 @@ the stored coordinates to about 0.3 m across the whole file.
 That fitted quantity is separable from the per-scan angular step, because the step is applied
 before the rotated-pole transformation and so moves latitude too, while the rate is a pure zonal
 shear applied after it. See verification/verify_vgac_alongtrack.py, which measures all three
-parameterisations. What remains unestablished is whether the producer holds this value, which
+parameterizations. What remains unestablished is whether the producer holds this value, which
 agreement at storage precision is consistent with and does not demonstrate.
 
 This script is kept because its subject is the cross-track offset and the choice of forward

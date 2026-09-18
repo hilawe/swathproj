@@ -92,13 +92,13 @@ class SwathGeometry:
 
     # -- cell axes <-> satellite-frame angles -------------------------------------------
     def _cell_to_angles(self, i, j):
-        """Cell indices to satellite-frame angles, both axes centre-based.
+        """Cell indices to satellite-frame angles, both axes center-based.
 
-        Cell i has its CENTRE at rotated latitude (i - nadir_index) * cell_size_deg, with
+        Cell i has its CENTER at rotated latitude (i - nadir_index) * cell_size_deg, with
         nadir_index a ZERO-BASED array index. This convention is not a choice: it is what the
         published VGAC files themselves use, established by fitting the offset against a real
         orbit's stored latitude and longitude (verification/verify_real_vgac.py). The residual
-        minimises sharply at i - 400 and degrades linearly at 0.97 km per quarter cell either
+        minimizes sharply at i - 400 and degrades linearly at 0.97 km per quarter cell either
         side, so the offset is well determined whatever the along-track term does. The residual
         at that minimum is 0.34 km under the nominal Earth-rotation rate and about 0.3 m once one
         along-track degree of freedom is fitted (verification/verify_vgac_alongtrack.py). An
@@ -124,13 +124,13 @@ class SwathGeometry:
         observation time, so a fractional j has no physical referent: interpolating the time
         between two scans places a point on a surface no cell owns, and inverse() then
         correctly reports it off-swath. An earlier version accepted fractional j and
-        interpolated, which produced exactly that confusing pair of behaviours, so it is now
+        interpolated, which produced exactly that confusing pair of behaviors, so it is now
         refused. i remains any real value, since it is simply a rotated latitude.
 
         j must be in [0, n_scan). Outside that the Earth-rotation term has no observation
         time to use, so both latitude and longitude come back NaN rather than a half-valid
         position a caller might use by accident. Cell FOOTPRINTS still extend half a cell
-        either side of a scan centre, but that is a property of the cell, not of the index.
+        either side of a scan center, but that is a property of the cell, not of the index.
         """
         j_arr = np.asarray(j)
         if not np.all(np.equal(np.mod(np.asarray(j_arr, float), 1.0), 0.0)):
@@ -223,7 +223,7 @@ class SwathGeometry:
 
     def _scan_in_range(self, j):
         """Scans are the integers [0, n_scan). Cell footprints still extend half a cell either
-        side of a scan centre, but that is a property of the CELL, not of the scan index."""
+        side of a scan center, but that is a property of the CELL, not of the scan index."""
         j = np.asarray(j, float)
         return (j >= 0) & (j < self.n_scan)
 

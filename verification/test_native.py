@@ -43,7 +43,7 @@ from swathproj.rotated_pole import rotated_to_geographic  # noqa: E402
 def _central_angle_by_ray(look_deg, altitude_km, R=EARTH_RADIUS_KM):
     """Independent oracle: cast a ray from the satellite and intersect the Earth sphere.
 
-    Earth centre at the origin, sphere radius R. Sub-satellite point at (R, 0, 0), satellite at
+    Earth center at the origin, sphere radius R. Sub-satellite point at (R, 0, 0), satellite at
     (R + h, 0, 0). The cross-track scan sweeps the x-z plane, and a look angle theta rotates the
     nadir direction (-1, 0, 0) about the y axis toward +z, giving d = (-cos theta, 0, sin theta).
     The nearest sphere intersection P has central angle arccos(P_x / R) from the sub-satellite
@@ -133,7 +133,7 @@ def _make_native(n_scan=40, n_pixel=51, altitude=None):
     return NativeCrossTrackGeometry(
         ref_lat=5.0, ref_lon=-40.0, heading=190.0,
         n_scan=n_scan, n_pixel=n_pixel, scan_angle_deg=0.24,
-        look_angle_step_deg=56.0 / (n_pixel // 2),   # nadir at the centre sample
+        look_angle_step_deg=56.0 / (n_pixel // 2),   # nadir at the center sample
         nadir_index=n_pixel // 2, altitude_km=altitude,
         scan_time_hours=times,
     )
