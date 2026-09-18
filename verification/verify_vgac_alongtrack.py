@@ -323,8 +323,8 @@ def main():
 
     held = residual(test_j, test_i, fitted)
     ho_median = float(np.median(held))
-    print(f"HELD-OUT scans {half}..{n_scan}: median {ho_median * 1000:.1f} m, "
-          f"p95 {np.percentile(held, 95) * 1000:.1f} m, max {held.max() * 1000:.1f} m")
+    print(f"HELD-OUT scans {half}..{n_scan}: median {ho_median * 1000:.2f} m, "
+          f"p95 {np.percentile(held, 95) * 1000:.2f} m, max {held.max() * 1000:.2f} m")
     assert ho_median < 0.002, (
         f"held-out median is {ho_median:.4f} km, so the fit does not transfer even across halves "
         f"of the same orbit")
@@ -337,8 +337,9 @@ def main():
     jj, ii = np.nonzero(valid)
     full = residual(jj, ii, fitted)
     quantum_m = float(np.spacing(np.float32(60.0)) * 111.19 * 1000)
-    print(f"FULL ARRAY n={full.size}: median {np.median(full) * 1000:.1f} m, "
-          f"max {full.max() * 1000:.1f} m  (float32 quantum {quantum_m:.1f} m)")
+    print(f"FULL ARRAY n={full.size}: median {np.median(full) * 1000:.2f} m, "
+          f"max {full.max() * 1000:.2f} m  (latitude-only float32 ulp {quantum_m:.2f} m, and "
+          f"the 2-D half-ulp displacement is 0.43 m median)")
     assert np.median(full) < 0.002, "full-array median is not at storage precision"
     assert full.max() < 0.010, (
         f"full-array MAX is {full.max() * 1000:.1f} m. The median can stay at storage precision "

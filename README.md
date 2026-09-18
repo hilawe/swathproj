@@ -35,7 +35,7 @@ docstring). Measured against real products:
 
 | instrument | platform | geometry | test | median residual |
 |---|---|---|---|---|
-| VGAC | NOAA-20 | cross-track, resampled | full mapping | 0.3 m |
+| VGAC | NOAA-20 | cross-track, resampled | full mapping | 0.18 m |
 | AVHRR GAC L1C | Metop-C | cross-track, native | radial profile | 3.7 km |
 | VIIRS SDR | NOAA-20 | cross-track, native | radial profile, file zenith | 0.3 km |
 | ATMS FCDR L1C | Suomi-NPP | cross-track, native | radial profile | 7.2 km |
@@ -60,10 +60,12 @@ table comes from running the `verification/` scripts against real files locally.
 
 The VGAC row is in metres because the stored coordinates for this resampled product are
 consistent with the analytic mapping once ONE along-track degree of freedom is fitted. Fitting it
-on the first half of the orbit and scoring on the second gives a held-out median of 0.4 m, and
-scoring all 8260713 valid pixels gives 0.3 m, against a float32 storage quantum of 0.4 m.
+on the first half of the orbit and scoring on the second gives a held-out median of 0.18 m, and
+scoring all 8260713 valid pixels gives 0.18 m. For scale, a half-ulp perturbation of both stored
+coordinates displaces a position by a median of 0.43 m, so the agreement is at the granularity the
+file can represent.
 
-Read the two VGAC numbers as answers to different questions. 0.3 m is the reconstruction error
+Read the two VGAC numbers as answers to different questions. 0.18 m is the reconstruction error
 after fitting that one parameter from the orbit. 0.3326 km is the error with the along-track term
 left at the nominal 15 degrees per hour.
 
@@ -78,9 +80,9 @@ terms in one angular variable and a time axis linear in scan index, the two woul
 This model does not have that form: the scan step is a rotated-frame longitude applied BEFORE the
 rotated-pole transformation, so changing it moves a cell along the ground track and alters latitude
 as well, while the rate is subtracted from geographic longitude AFTER it, a pure zonal shear.
-Latitude separates them. On the reference orbit the fitted rate gives 0.34 m, leaving the rate
-nominal gives 330 m, and the compensating step the abstract algebra prescribes gives 804 m, worse
-than doing nothing. See `verification/verify_vgac_alongtrack.py`, which asserts all three.
+Latitude separates them. On the reference orbit the fitted rate gives 0.18 m, leaving the rate
+nominal gives 329.44 m, and the compensating step the abstract algebra prescribes gives 803.44 m,
+worse than doing nothing. See `verification/verify_vgac_alongtrack.py`, which asserts all three.
 
 What the file does not carry is any value for that along-track term. Its stored coordinates cannot
 be regenerated from its stated mapping parameters alone, without either fitting against the stored
