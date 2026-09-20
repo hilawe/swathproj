@@ -93,7 +93,12 @@ class NativeCrossTrackGeometry:
         n_scan              number of scans in the file
         scan_angle_deg      along-track angular advance per scan, degrees
         scan_origin_deg     rotated longitude of scan 0
-        rotation_rate       Earth rotation, degrees of longitude per hour
+        rotation_rate       zonal longitude shear, degrees of longitude per hour. The 15.0
+                            default is nominal and is not guaranteed to reproduce a product's
+                            stored coordinates. See DEFAULT_ROTATION_RATE in geometry.py for
+                            what it costs on the one orbit that was measured. That evidence
+                            comes from resampled products, NOT from this geometry, so the cost
+                            of the default here is unmeasured.
         scan_time_hours     observation time of each scan, hours since the reference
 
     Native cross-track parameters:
@@ -115,7 +120,7 @@ class NativeCrossTrackGeometry:
     altitude_km: float | np.ndarray
     scan_time_hours: np.ndarray | None = None
     scan_origin_deg: float = 0.0
-    rotation_rate: float = 15.0
+    rotation_rate: float = 15.0  # nominal, see DEFAULT_ROTATION_RATE in geometry.py
     earth_radius_km: float = EARTH_RADIUS_KM
     # present so the SHARED axis validation runs unchanged. The native cross-track offset does
     # not use a fixed cell size, and the [-90, 90] cross-track extent check is applied directly

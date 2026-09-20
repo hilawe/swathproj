@@ -29,7 +29,31 @@ from .rotated_pole import geographic_to_rotated, rotated_to_geographic
 D2R = np.pi / 180.0
 EARTH_RADIUS_KM = 6378.0
 DEFAULT_CELL_KM = 3.9
-DEFAULT_ROTATION_RATE = 15.0  # degrees of longitude per hour
+# The nominal rate of the zonal longitude shear, in degrees of longitude per hour, applied AFTER
+# the rotated-pole transform. It is a convenience default. IT IS NOT GUARANTEED TO REPRODUCE A
+# PRODUCT'S STORED COORDINATES, and a caller who needs accurate geolocation should supply a
+# product-specific coefficient supported by the producer's definition or by validated
+# reconstruction.
+#
+# WHAT IT IS. 15.0 is the mean-solar rate. It equals Earth's rotation relative to the orbit plane
+# only where nodal precession happens to match mean solar motion. Real precession and real Earth
+# rotation both vary, so describing it as exact for sun-synchronous orbits was too strong. That
+# description is withdrawn.
+#
+# WHAT IT COSTS ON THE ONE ORBIT THAT WAS MEASURED. On the reference resampled orbit, retaining
+# 15.0 gives approximately 329 m median difference from the stored coordinates. Fitting the
+# coefficient gives approximately 0.18 m, at a fitted value of 14.9940784. These are reconstruction
+# differences, not estimates of geolocation accuracy. Separate transfer tests found that one shared
+# coefficient did not reproduce all tested granules at comparable precision, so the fitted value
+# above belongs to the reference orbit and is not a constant to carry to another granule.
+# verification/verify_vgac_alongtrack.py measures both numbers and asserts the gap between them.
+#
+# SCOPE OF THAT EVIDENCE. It covers resampled products. The native and conical geometries were not
+# tested, and nothing measured here says what this default costs them.
+#
+# The parameter name and the existence of this default are both PROVISIONAL. Changing either one is
+# a deliberate compatibility change to the public interface, not a side effect of documentation.
+DEFAULT_ROTATION_RATE = 15.0
 
 
 @dataclass

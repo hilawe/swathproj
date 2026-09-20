@@ -49,7 +49,12 @@ class ConicalGeometry:
         n_scan              number of scans (rotations sampled) in the file
         scan_angle_deg      along-track angular advance per scan, degrees
         scan_origin_deg     rotated longitude of scan 0
-        rotation_rate       Earth rotation, degrees of longitude per hour
+        rotation_rate       zonal longitude shear, degrees of longitude per hour. The 15.0
+                            default is nominal and is not guaranteed to reproduce a product's
+                            stored coordinates. See DEFAULT_ROTATION_RATE in geometry.py for
+                            what it costs on the one orbit that was measured. That evidence
+                            comes from resampled products, NOT from this geometry, so the cost
+                            of the default here is unmeasured.
         scan_time_hours     observation time of each scan, hours since the reference
 
     Cone parameters (specific to this geometry):
@@ -75,7 +80,7 @@ class ConicalGeometry:
     # Needed whenever the orbit is not circular enough for a constant step: see the class
     # docstring.
     scan_longitude_deg: np.ndarray | None = None
-    rotation_rate: float = 15.0
+    rotation_rate: float = 15.0  # nominal, see DEFAULT_ROTATION_RATE in geometry.py
     # present so the SHARED validation can run unchanged. A conical instrument has no
     # cross-track cell size, and the cross-track extent check is deliberately not applied:
     # n_pixel counts azimuth samples around the cone, not cells across a track.
