@@ -2,8 +2,6 @@
 
 Analytic geolocation for Low Earth Orbit satellite scanning swaths.
 
-By Hilawe Semunegus, NOAA NCEI.
-
 Many polar-orbiting swath products store latitude and longitude for each pixel. These arrays
 locate the observations. An analytic description can also express how array position relates to
 ground position, using compact grid parameters and per-scan inputs.
@@ -125,3 +123,7 @@ Dedicated to the public domain under CC0 1.0. No rights reserved.
 ## Status
 
 Early release of a reference implementation. The API may change.
+
+## Author
+
+Hilawe Semunegus, NOAA NCEI.
