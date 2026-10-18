@@ -10,7 +10,8 @@ ground position, using compact grid parameters and per-scan inputs.
 shear proportional to elapsed observation time. The rotation stage corresponds to the network
 Common Data Form (netCDF) Climate and Forecast (CF) `rotated_latitude_longitude` grid mapping.
 Its pole parameters can be used by software that implements that mapping. The time-dependent
-composition requires additional logic and is not yet a standardized CF mapping.
+composition requires additional logic and is not a standardized CF mapping. A proposal to
+standardize it is described below.
 
 ## Scan geometries
 
@@ -85,6 +86,28 @@ worse than doing nothing. See `verification/verify_vgac_alongtrack.py`, which as
 What the file does not carry is any value for that along-track term. Its stored coordinates cannot
 be regenerated from its stated mapping parameters alone, without either fitting against the stored
 latitude and longitude or obtaining the parameter externally.
+
+## CF proposal
+
+A grid mapping for the time-dependent composition is proposed to the CF conventions in
+[cf-convention/cf-conventions#670](https://github.com/cf-convention/cf-conventions/issues/670),
+following the design discussion in
+[#662](https://github.com/cf-convention/cf-conventions/issues/662). It is provisionally named
+`time_dependent_rotated_latitude_longitude`. The corresponding changes to the conventions text are
+in pull request [#671](https://github.com/cf-convention/cf-conventions/pull/671). Under CF's
+contribution rules, discussion of the proposal itself belongs in #670, and comments on specific
+wording can go on #671. As of October 2026 the proposal has been revised once in response to
+comments and remains under discussion. Its names are provisional, and it is not part of any CF
+release.
+
+The proposed mapping covers grids whose coordinates are angles in a rotated frame, such as the
+resampled VGAC product in the table above. The frame is the rotated pole of
+`rotated_latitude_longitude` at a reference time and turns about the Earth's polar axis at a
+stated rate, so the pole latitude is fixed and the pole longitude advances. Each row takes its
+time from the data variable's time coordinate. The proposal states the rate as positive eastward,
+so this package's `rotation_rate`, which defaults to 15.0 degrees per hour and is subtracted from
+longitude, appears there with the opposite sign. Native swath geometry and the conical case are
+outside the proposed mapping. This package treats them separately.
 
 ## Install
 
