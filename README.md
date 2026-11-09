@@ -71,7 +71,11 @@ left at the nominal 15 degrees per hour.
 Two limits on what that shows, both worth stating plainly.
 
 It does not show how the product was generated. Agreement at storage precision is consistent with
-the coordinates having been produced by this mapping and does not establish that they were.
+the coordinates having been produced by this mapping and does not by itself establish that they
+were. The dataset's authors have since stated, in the open discussion of the VGAC paper (Knapp et
+al., 2026, doi:10.5194/essd-2026-339), that the stored latitude and longitude are calculated
+cell-center positions from the projection, not averages. The same reply states that the grid
+indices are 1-based, and both points are to be clarified in the paper's revision.
 
 The fitted parameter is separable from the per-scan angular step, which is the other along-track
 quantity it could be confused with. Written abstractly as `j*scan_step - rate*t(j)`, with both
@@ -96,9 +100,13 @@ following the design discussion in
 `time_dependent_rotated_latitude_longitude`. The corresponding changes to the conventions text are
 in pull request [#671](https://github.com/cf-convention/cf-conventions/pull/671). Under CF's
 contribution rules, discussion of the proposal itself belongs in #670, and comments on specific
-wording can go on #671. As of October 2026 the proposal has been revised once in response to
-comments and remains under discussion. Its names are provisional, and it is not part of any CF
-release.
+wording can go on #671. The proposal was revised in October 2026 in response to comments. On
+5 November 2026 a member of the CF conventions committee wrote that it had sufficient support under
+CF's rules and would be accepted on 26 November 2026 if no concerns were raised
+([comment](https://github.com/cf-convention/cf-conventions/issues/670#issuecomment-6659613596)).
+New standard names for the two angular coordinates are now being discussed, because the existing
+projection-angle names are defined for a map-projection plane. The names remain provisional, and
+the mapping is not part of any CF release.
 
 The proposed mapping covers grids whose coordinates are angles in a rotated frame, such as the
 resampled VGAC product in the table above. The frame is the rotated pole of
