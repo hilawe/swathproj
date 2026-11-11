@@ -40,7 +40,9 @@ reproduces the observed radius to about 0.023 degrees, roughly 2.5 km, with the 
 attributable to the spherical approximation.
 
 The design consequence is concrete: a conical mapping cannot use one fixed cone constant for a
-whole pass. Doing so would misplace pixels by up to about 43 km here. Either the altitude or the
+whole pass. Doing so would misplace pixels by up to about 21.5 km here, the largest departure of
+the observed radius from its mean (an earlier version gave 43 km, the peak-to-peak spread, which
+double-counts). Either the altitude or the
 cone angle has to be carried per scan. This matters because the cross-track case CAN assume a
 constant nominal altitude, since its coordinate is the scan angle itself, so the two geometries
 differ in what they must record even though they share the orbit model.
@@ -108,15 +110,21 @@ def main():
         np.arcsin(EARTH_KM * np.sin(incidence * D2R) / (EARTH_KM + height)))
     residual = rho_obs - rho_pred
     corr = float(np.corrcoef(rho_obs, height)[0, 1])
+    # The misplacement a single mean cone would cause is the largest departure of the observed
+    # per-pixel radius from its mean, as in verify_conical_ssmi.py. An earlier version printed the
+    # peak-to-peak spread here (42.8 km), which double-counts, being the sum of the two one-sided
+    # departures. The spread is still printed, labeled as a spread.
     spread_km = float(rho_obs.max() - rho_obs.min()) * 111.32
+    max_dev_km = float(np.max(np.abs(rho_obs - rho_obs.mean()))) * 111.32
     print(f"2: cone radius correlates with altitude at {corr:+.3f}; predicting it from "
           f"incidence angle and altitude leaves {residual.std():.4f} deg "
           f"({residual.std() * 111.32:.2f} km)")
-    print(f"   a single fixed cone constant would misplace pixels by up to {spread_km:.1f} km "
-          f"across this pass, so altitude or cone angle must be carried per scan")
+    print(f"   the observed radius spans {spread_km:.1f} km peak to peak, and a single mean cone "
+          f"would misplace pixels by up to {max_dev_km:.1f} km across this pass, so altitude "
+          f"or cone angle must be carried per scan")
     assert corr > 0.9, "cone radius no longer tracks altitude, re-examine the model"
     assert residual.std() < 0.05, "incidence angle plus altitude no longer predicts the radius"
-    assert spread_km > 10.0, "the altitude effect vanished, which would change the design finding"
+    assert max_dev_km > 5.0, "the altitude effect vanished, which would change the design finding"
 
     # RESULT 3: the model reproduces the file's geolocation, and the two per-scan
     # requirements are isolated by turning each one off in turn

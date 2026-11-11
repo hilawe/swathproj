@@ -65,8 +65,8 @@ perturbation in both float32 angular coordinates produces about 0.43 m median di
 This is a scale for comparison, not a lower bound on residuals or a geolocation accuracy estimate.
 
 Read the two VGAC numbers as answers to different questions. 0.18 m is the reconstruction error
-after fitting that one parameter from the orbit. 0.3326 km is the error with the along-track term
-left at the nominal 15 degrees per hour.
+after fitting that one parameter from the orbit. 0.3326 km is the median error over all 8260713
+pixels with the along-track term left at the nominal 15 degrees per hour.
 
 Two limits on what that shows, both worth stating plainly.
 
@@ -75,7 +75,10 @@ the coordinates having been produced by this mapping and does not by itself esta
 were. The dataset's authors have since stated, in the open discussion of the VGAC paper (Knapp et
 al., 2026, doi:10.5194/essd-2026-339), that the stored latitude and longitude are calculated
 cell-center positions from the projection, not averages. The same reply states that the grid
-indices are 1-based, and both points are to be clarified in the paper's revision.
+indices are 1-based. The authors' updated tutorial (commit 4352ae1) uses two index modes, one for
+the stored latitude and longitude arrays and one for the measurement arrays, which it documents
+as offset from each other by one cell, so the index of a given cell depends on which array is
+meant. Both points are to be clarified in the paper's revision.
 
 The fitted parameter is separable from the per-scan angular step, which is the other along-track
 quantity it could be confused with. Written abstractly as `j*scan_step - rate*t(j)`, with both
@@ -83,8 +86,10 @@ terms in one angular variable and a time axis linear in scan index, the two woul
 This model does not have that form: the scan step is a rotated-frame longitude applied BEFORE the
 rotated-pole transformation, so changing it moves a cell along the ground track and alters latitude
 as well, while the rate is subtracted from geographic longitude AFTER it, a pure zonal shear.
-Latitude separates them. On the reference orbit the fitted rate gives 0.18 m, leaving the rate
-nominal gives 329.44 m, and the compensating step the abstract algebra prescribes gives 803.44 m,
+Latitude separates them. On a sample of 30000 cells of the reference orbit (seed 1), the fitted
+rate gives a median of 0.18 m, leaving the rate nominal gives 329.44 m (the same comparison as the
+0.3326 km above, on the sample rather than every pixel), and the compensating step the abstract
+algebra prescribes gives 803.44 m,
 worse than doing nothing. See `verification/verify_vgac_alongtrack.py`, which asserts all three.
 
 What the file does not carry is any value for that along-track term. Its stored coordinates cannot

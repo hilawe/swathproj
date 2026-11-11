@@ -16,9 +16,9 @@ circle. That is the whole difference, and it is why both are one grid mapping wi
 
 The cone radius may be a SCALAR or an array of one value per scan. That is not a convenience.
 Measured on a real CSU SSMIS granule, spacecraft altitude varies about 37 km within a single
-pass and the cone radius tracks it at a correlation of +0.97; a single fixed radius would
-misplace pixels by up to about 43 km across the pass, so the DMSP series needs a per-scan
-cone radius.
+pass and the cone radius tracks it at a correlation of +0.97, and a single mean radius would
+misplace pixels by up to about 21.5 km across the pass (the largest departure of the observed
+radius from its mean), so the DMSP series needs a per-scan cone radius.
 
 The SAME orbital eccentricity affects a second quantity: the along-track ANGULAR RATE
 varies with altitude, at a correlation of -0.91, exactly as Kepler's second law requires.
