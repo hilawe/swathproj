@@ -53,6 +53,19 @@ D2R = np.pi / 180.0
 EARTH_KM = 6371.0
 
 
+def max_departure_from_mean(x):
+    """Largest absolute departure of x from its own mean, which is neither the range nor the
+    half-range."""
+    x = np.asarray(x, float)
+    return float(np.max(np.abs(x - x.mean())))
+
+
+# An asymmetric example tells the three statistics apart. For 0, 0, 0, 10 the mean is 2.5, the
+# range 10, the half-range 5, and the largest departure from the mean 7.5.
+assert max_departure_from_mean([0.0, 0.0, 0.0, 10.0]) == 7.5, \
+    "max_departure_from_mean no longer returns the departure from the mean"
+
+
 def great_circle_deg(lat1, lon1, lat2, lon2):
     a1, a2 = lat1 * D2R, lat2 * D2R
     dlon = (lon2 - lon1) * D2R
@@ -97,16 +110,23 @@ def validate_swath(ds, swath):
         np.arcsin(EARTH_KM * np.sin(eia[good] * D2R) / (EARTH_KM + height)))
     residual = rho - rho_pred
     corr = float(np.corrcoef(rho, height)[0, 1])
-    # The misplacement a single mean cone would cause is the largest departure of the observed
-    # per-pixel radius from its mean, NOT the peak-to-peak spread (which double-counts, being the
-    # sum of the two one-sided departures).
-    max_dev_km = float(np.max(np.abs(rho - rho.mean()))) * 111.32
+    # The largest departure of the observed per-pixel radius from its mean, kept apart from the
+    # peak-to-peak spread. Neither is a mapping error. The effect of a constant radius on the
+    # mapping is the fixed-cone control of RESULT 4.
+    spread_km = float(rho.max() - rho.min()) * 111.32
+    max_dev_km = max_departure_from_mean(rho) * 111.32
     print(f"  2: cone radius correlates with altitude at {corr:+.3f}; incidence angle plus "
           f"altitude predicts it to {residual.std():.4f} deg ({residual.std() * 111.32:.2f} km); "
-          f"a single mean cone would misplace pixels by up to {max_dev_km:.1f} km")
+          f"the observed radius departs from its own mean by up to {max_dev_km:.1f} km "
+          f"(spread {spread_km:.1f} km)")
     assert corr > 0.85, f"{swath}: cone radius no longer tracks altitude"
     assert residual.std() < 0.05, f"{swath}: incidence plus altitude no longer predicts the radius"
     assert max_dev_km > 5.0, f"{swath}: the altitude effect vanished, the design finding changes"
+    # The largest departure from the mean lies strictly between the half-range and the range
+    # unless the mean sits exactly at the midpoint or an end, so equality with either means the
+    # wrong statistic was substituted.
+    assert 0.5 * spread_km < max_dev_km < spread_km, \
+        f"{swath}: departure from the mean {max_dev_km} is not between half the spread and the spread"
 
     # RESULT 3: the shared orbit model reproduces the file's own geolocation
     def track_rms(heading):

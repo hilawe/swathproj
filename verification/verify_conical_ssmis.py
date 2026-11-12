@@ -36,14 +36,16 @@ RESULT 2, and this one changed a design assumption. The roughly 0.10 degree scat
 radius is NOT noise. It is the orbit: spacecraft altitude varies about 37 km within this single
 pass, and the cone radius tracks it with a correlation of about 0.97. Predicting the radius from
 the two per-scan observables, Earth incidence angle and altitude, on a spherical Earth,
-reproduces the observed radius to about 0.023 degrees, roughly 2.5 km, with the residual
-attributable to the spherical approximation.
+reproduces the observed radius to about 0.023 degrees, roughly 2.5 km. The source of that
+residual was not determined, and no ellipsoidal comparison was made.
 
-The design consequence is concrete: a conical mapping cannot use one fixed cone constant for a
-whole pass. Doing so would misplace pixels by up to about 21.5 km here, the largest departure of
-the observed radius from its mean (an earlier version gave 43 km, the peak-to-peak spread, which
-double-counts). Either the altitude or the
-cone angle has to be carried per scan. This matters because the cross-track case CAN assume a
+The design consequence is that a conical mapping should not use one fixed cone constant for a
+whole pass. The observed radius departs from its own mean by up to about 21.5 km here
+(an earlier version gave 43 km, the peak-to-peak spread, which is a different quantity). That
+is a property of the observed radius. The effect on the mapping is measured directly in RESULT
+4, where holding the cone radius at the mean of its per-scan predicted values raises the median
+difference from the file from 2.32 to 9.20 km. Either the altitude or the cone angle has to be
+carried per scan. This matters because the cross-track case CAN assume a
 constant nominal altitude, since its coordinate is the scan angle itself, so the two geometries
 differ in what they must record even though they share the orbit model.
 """
@@ -59,6 +61,19 @@ DATA = REPO / "data" / "ssmis_sample.nc"
 D2R = np.pi / 180.0
 EARTH_KM = 6371.0
 FEEDS = ["env1", "env2", "img1", "img2", "las", "uas"]
+
+
+def max_departure_from_mean(x):
+    """Largest absolute departure of x from its own mean, which is neither the range nor the
+    half-range."""
+    x = np.asarray(x, float)
+    return float(np.max(np.abs(x - x.mean())))
+
+
+# An asymmetric example tells the three statistics apart. For 0, 0, 0, 10 the mean is 2.5, the
+# range 10, the half-range 5, and the largest departure from the mean 7.5.
+assert max_departure_from_mean([0.0, 0.0, 0.0, 10.0]) == 7.5, \
+    "max_departure_from_mean no longer returns the departure from the mean"
 
 
 def great_circle_deg(lat1, lon1, lat2, lon2):
@@ -110,21 +125,24 @@ def main():
         np.arcsin(EARTH_KM * np.sin(incidence * D2R) / (EARTH_KM + height)))
     residual = rho_obs - rho_pred
     corr = float(np.corrcoef(rho_obs, height)[0, 1])
-    # The misplacement a single mean cone would cause is the largest departure of the observed
-    # per-pixel radius from its mean, as in verify_conical_ssmi.py. An earlier version printed the
-    # peak-to-peak spread here (42.8 km), which double-counts, being the sum of the two one-sided
-    # departures. The spread is still printed, labeled as a spread.
+    # The peak-to-peak spread and the largest departure from the mean are different statistics
+    # of the observed per-pixel radius, and neither is a mapping error. The effect of
+    # a constant radius on the mapping is the fixed-cone control of RESULT 4.
     spread_km = float(rho_obs.max() - rho_obs.min()) * 111.32
-    max_dev_km = float(np.max(np.abs(rho_obs - rho_obs.mean()))) * 111.32
+    max_dev_km = max_departure_from_mean(rho_obs) * 111.32
     print(f"2: cone radius correlates with altitude at {corr:+.3f}; predicting it from "
           f"incidence angle and altitude leaves {residual.std():.4f} deg "
           f"({residual.std() * 111.32:.2f} km)")
-    print(f"   the observed radius spans {spread_km:.1f} km peak to peak, and a single mean cone "
-          f"would misplace pixels by up to {max_dev_km:.1f} km across this pass, so altitude "
-          f"or cone angle must be carried per scan")
+    print(f"   the observed radius spans {spread_km:.1f} km peak to peak and departs from its own "
+          f"mean by up to {max_dev_km:.1f} km across this pass")
     assert corr > 0.9, "cone radius no longer tracks altitude, re-examine the model"
     assert residual.std() < 0.05, "incidence angle plus altitude no longer predicts the radius"
     assert max_dev_km > 5.0, "the altitude effect vanished, which would change the design finding"
+    # The largest departure from the mean lies strictly between the half-range and the range
+    # unless the mean sits exactly at the midpoint or an end, so equality with either means the
+    # wrong statistic was substituted.
+    assert 0.5 * spread_km < max_dev_km < spread_km, \
+        f"departure from the mean {max_dev_km} is not between half the spread and the spread"
 
     # RESULT 3: the model reproduces the file's geolocation, and the two per-scan
     # requirements are isolated by turning each one off in turn
