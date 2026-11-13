@@ -10,7 +10,7 @@ Needs a CSU AMSR2 FCDR granule at data/amsr2_sample.nc (about 71 MB, gitignored)
     curl -o data/amsr2_sample.nc \\
       $B/CSU_AMSR2_FCDR_V02R00_GCOMW1_D20220101_S0005_E0144_R051195.nc
 
-Verify the download by Content-Length, per the CSU playbook. Skips cleanly when absent.
+Verify the download by Content-Length rather than by non-emptiness. Skips cleanly when absent.
 
 WHY A SECOND CONICAL INSTRUMENT. The SSMIS verification established that the orbit model is
 shared and that both the cone radius and the along-track angular spacing must be carried per
@@ -23,9 +23,8 @@ about 75 m, the conical forward map reproduces the file's own coordinates to abo
 holding either quantity constant degrades that materially. The per-scan requirement is
 therefore a property of orbital eccentricity in general rather than a peculiarity of DMSP.
 
-This script also exists because the proposal in docs/CF_PROPOSAL_APPENDIX_F.md cites these
-numbers in its evidence table, and every number in that table should be reproducible by running
-the suite rather than taken from a session record.
+This script also exists so that every AMSR2 number this project cites can be reproduced by
+running the suite rather than taken from the record of an earlier computation.
 """
 
 import sys

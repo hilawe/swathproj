@@ -341,7 +341,7 @@ def _forward_rotation(ref_lat, heading, ref_lon):
     """Rotated-frame vector to geographic vector.
 
     M = Rz(ref_lon) @ Ry(-ref_lat) @ Rx(-heading). The reference longitude is part of the
-    ROTATION, not a separate shift applied afterwards. Folding it in is what makes the
+    ROTATION, not a separate shift applied afterward. Folding it in is what makes the
     exposed CF parameters sufficient on their own: a consumer that reads
     grid_north_pole_latitude, grid_north_pole_longitude and north_pole_grid_longitude and
     applies only the Earth-rotation term reproduces the mapping exactly. When ref_lon was

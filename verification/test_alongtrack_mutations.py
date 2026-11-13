@@ -5,7 +5,7 @@ Run from the repo root with the project venv:
     .venv/bin/python verification/test_alongtrack_mutations.py
 
 WHY THIS EXISTS. The along-track findings were reported as "mutation-checked" while the mutations
-themselves lived only in a shell session. That is the same preservation fault this project had just
+themselves lived only in an interactive shell. That is the same preservation fault this project had just
 removed from a joint-fit claim: a result cited as evidence whose procedure was not retained cannot
 be re-run, audited, or trusted. A named assertion that nobody can watch fail is decoration.
 
@@ -29,7 +29,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 TARGET = REPO / "verification" / "verify_vgac_alongtrack.py"
-# Honours the same override the script under test uses, so the missing-data path is testable
+# Honors the same override the script under test uses, so the missing-data path is testable
 # rather than only reachable by deleting the granule.
 DATA = Path(os.environ["SWATHPROJ_VGAC_DATA"]) if os.environ.get("SWATHPROJ_VGAC_DATA") \
     else REPO / "data" / "VGAC_sample_orbit.nc"

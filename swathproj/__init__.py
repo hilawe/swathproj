@@ -2,7 +2,7 @@
 
 This is the reference code that accompanies the proposal to give netCDF-CF an analytic
 geolocation for Low Earth Orbit scanning instruments. It is deliberately small and readable,
-because its job is to let a reviewer run the mapping against real data and see the numbers,
+because its job is to let a reader run the mapping against real data and see the numbers,
 not to be a production library.
 
 The mapping decomposes into two stages, and the code keeps them separate on purpose:

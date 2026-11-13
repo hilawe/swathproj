@@ -28,8 +28,8 @@ low-resolution scans (the documented two-to-one pairing).
 Measured differences from SSMIS on this F13 granule, for the record and NOT assumed equal:
 Earth incidence angle about 52.95 degrees (SSMIS about 53), cone radius about 8.29 degrees (SSMIS
 8.26 to 8.43), spacecraft altitude varying about 21 km within the pass (SSMIS about 37), and the
-per-scan spacecraft latitude does NOT repeat here (the playbook's repeating warning is for the
-SSM/I TDR product, not this FCDR), so the sub-satellite track is usable directly.
+per-scan spacecraft latitude does NOT repeat here (repeated values are a property of the SSM/I
+TDR product, not this FCDR), so the sub-satellite track is usable directly.
 
 WHAT THIS CHECKS. Each swath is validated on its own as a conical scan. The defining conical
 property (every pixel at a near-constant angular radius from the sub-satellite point), the finding
