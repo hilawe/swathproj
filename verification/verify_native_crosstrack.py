@@ -5,13 +5,14 @@ Run from the repo root with the project venv:
     .venv/bin/python verification/verify_native_crosstrack.py
 
 Validates EVERY cross-track granule present in data/, and passes only when all of them
-pass. It reads a CF-netCDF AVHRR GAC L1C (EUMETSAT C3S FCDR, a clean uniform-step whiskbroom), a
-C3S ATMS FCDR L1C (a uniform-step microwave sounder, with coarser footprints), an operational
-VIIRS SDR geolocation file (GMTCO/GITCO HDF5 from NOAA CLASS, an aggregated instrument), a NASA
-VJ103MOD/VNP03MOD netCDF, and a Sentinel-3 OLCI L1B EFR product (a push-broom instrument's resampled
-product). It skips with a clear message when no granule is present.
+pass. It reads a set of consecutive ATMS SDR ellipsoid geolocation granules (GATMO HDF5 from NOAA
+CLASS, a uniform-step microwave sounder) as one swath, an operational VIIRS SDR geolocation file
+(GMTCO/GITCO HDF5 from NOAA CLASS, an aggregated instrument), a NASA VJ103MOD/VNP03MOD netCDF,
+and a Sentinel-3 OLCI L1B EFR product (a push-broom instrument's resampled product). It skips with
+a clear message when no granule is present. AVHRR GAC Level 1B, which keeps its geolocation at
+anchor points in a binary format, is fitted by verify_avhrr_l1b.py with the same fit functions.
 
-Two regimes, and the OLCI finding. The whiskbroom and aggregated products (AVHRR, ATMS, VIIRS) are
+Two regimes, and the OLCI finding. The scanning and aggregated products (ATMS, VIIRS) are
 NATIVE slant-range swaths whose cross-track ground spacing grows away from nadir, so the equal-angle
 model must FAIL on them and the slant-range relation must hold. OLCI is different, and the difference
 is measured rather than assumed. Its delivered cross-track sampling is uniform in GROUND angle (the
@@ -26,14 +27,15 @@ across-track acquisition, and no intra_scan_time_span claim is made. Second, thi
 and a one-dimensional radial-profile-and-consistency check, not a two-dimensional geolocation
 reproduction. OLCI takes an inverted test. The equal-angle model must FIT, the view zenith must AGREE
 with the geolocation to a tight cap (using a sign-corrected nadir, since the stored OZA is an unsigned
-magnitude that plateaus at nadir), and the fitted altitude must be near Sentinel-3's real value. For the slant-range families the absolute residual differs by instrument, sub-km for the AVHRR
-and VIIRS visible-infrared pixels and a few km for ATMS, so the pass criteria are RELATIVE (each
-model must beat the equal-angle model by a wide margin) with family-specific absolute caps. The ATMS few-km residual is NOT claimed as a footprint
-floor. It is only partly nadir-index quantization (ATMS has an even 96-beam count, so nadir falls
-between beams, and fitting a fractional nadir removes under 1 km of it). The remainder is where the
-spherical slant-range model departs from the ATMS FCDR's full geolocation. What holds for every
+magnitude that plateaus at nadir), and the fitted altitude must be near Sentinel-3's real value. For the slant-range families the absolute residual differs by instrument, sub-km for the
+VIIRS visible-infrared pixels and several km for ATMS, so the pass criteria are RELATIVE (each
+model must beat the equal-angle model by a wide margin) with family-specific absolute caps. The
+ATMS residual of several km is NOT claimed as a footprint floor, and its source was not examined.
+ATMS has an even 96-beam count, so the nadir beam sits up to half a beam from the sub-satellite
+point, and the size of that contribution was not measured on these granules. What holds for every
 instrument is that the slant-range model beats equal-angle by roughly an order of magnitude, which
-is the point of the native check. Tested against Metop-C AVHRR, SNPP ATMS, and NOAA-20 VIIRS granules.
+is the point of the native check. Tested against NOAA-20 ATMS and VIIRS granules and a Sentinel-3A
+OLCI granule.
 
 Why native, and what this settles. The VGAC check (verify_real_vgac.py) uses a RESAMPLED product
 whose grid is a uniform division of ground angle, so the equal-angle model fits it perfectly. That
@@ -65,8 +67,9 @@ What each establishes, from weakest to strongest claim.
      for the NativeCrossTrackGeometry mapping than the zenith check, but it remains a
      one-dimensional radial-profile test. It does not check that the pixels lie on the required
      cross-track great circle, so it is not a full two-dimensional geolocation reproduction. It
-     applies only to instruments that sample uniformly in scan angle (AVHRR and ATMS). An aggregated
-     instrument (VIIRS) is not uniform in index and is not asserted against it.
+     applies only to instruments that sample uniformly in scan angle (ATMS here, and AVHRR in
+     verify_avhrr_l1b.py). An aggregated instrument (VIIRS) is not uniform in index and is not
+     asserted against it.
 
 The nadir is the integer argmin-zenith pixel, so a fractional sub-satellite position contributes a
 subpixel-scale residual that is left in rather than tuned out. This is a one-dimensional profile
@@ -76,6 +79,7 @@ accordingly. The fit logic is exercised on synthetic data in verification/test_n
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -96,11 +100,9 @@ D2R = np.pi / 180.0
 # footprint scale, so the caps are family-specific, and the primary check is always relative. The
 # zenith and pixel-index tests get SEPARATE caps: the zenith consistency check is tight (it uses
 # the file's own per-pixel geometry), while the pixel-index check is looser because it also carries
-# the interpolated GAC geolocation and the integer-nadir quantization. step_deg is the nominal
-# cross-track scan step (degrees per beam), used to confirm the fit recovered the real instrument
-# step, not just one that happens to fit.
+# the integer-nadir quantization. step_deg is the nominal cross-track scan step (degrees per beam),
+# used to confirm the fit recovered the real instrument step, not just one that happens to fit.
 FAMILY = {
-    "AVHRR": dict(uniform=True, step_deg=0.27, zenith_cap_km=1.0, index_cap_km=6.0),
     "ATMS": dict(uniform=True, step_deg=1.11, zenith_cap_km=12.0, index_cap_km=12.0),
     "VIIRS": dict(uniform=False, step_deg=None, zenith_cap_km=3.0, index_cap_km=None),
     # OLCI L1B EFR is a push-broom instrument's RESAMPLED product, and MEASUREMENT (not assumption)
@@ -117,20 +119,25 @@ FAMILY = {
 
 def _find_granules():
     """Every recognized cross-track granule under data/, matched case-insensitively and
-    recursively, de-duplicated by resolved path, in a stable order: AVHRR (visible-infrared, the
-    tightest geolocation), then VIIRS (aggregated), then ATMS (microwave), then OLCI (the push-broom).
-    The suite passes when every one of them passes. Only recognized families are matched, so a
-    resampled or conical file in data/ (VGAC, SSMIS, AMSR2) is correctly ignored."""
+    recursively, de-duplicated by resolved path, in a stable order: VIIRS (aggregated), then ATMS
+    (microwave), then OLCI (the push-broom). The suite passes when every one of them passes. Only
+    recognized families are matched, so a resampled or conical file in data/ (VGAC, SSMIS, AMSR2)
+    is correctly ignored, as are AVHRR Level 1B files, which verify_avhrr_l1b.py reads. An ATMS
+    swath is the DIRECTORY holding a set of consecutive GATMO granules, because one granule file
+    covers only minutes of an orbit."""
     d = REPO / "data"
-    files = [p.resolve() for p in sorted(d.rglob("*")) if p.is_file()]
+    listed = [p for p in sorted(d.rglob("*")) if p.is_file()]
+    files = [p.resolve() for p in listed]
 
     def match(pred):
         return [p for p in files if pred(p.name.lower())]
 
-    avhrr = match(lambda n: "avhr" in n and n.endswith(".nc"))
     viirs = (match(lambda n: (n.startswith("gmtco_") or n.startswith("gitco_")) and n.endswith(".h5"))
              + match(lambda n: ("vj103mod" in n or "vnp03" in n) and n.endswith(".nc")))
-    atms = match(lambda n: "atms" in n and n.endswith(".nc"))
+    # The ATMS swath is the directory the granules are LISTED in, not the directory a symbolic link
+    # points into, which may hold a whole order of other granules.
+    atms = sorted({p.parent.resolve() for p in listed
+                   if p.name.lower().startswith("gatmo_") and p.name.lower().endswith(".h5")})
     # OLCI L1B EFR is a directory product (.SEN3) whose geolocation is split across sibling files.
     # The granule handle is its geo_coordinates.nc, matched only when the tie_geometries.nc that
     # carries the view zenith sits beside it, so an unrelated geo_coordinates.nc is not picked up.
@@ -139,7 +146,7 @@ def _find_granules():
     legacy = [p for p in files if p.name == "native_viirs_geo.nc"]
 
     seen, out = set(), []
-    for p in [*avhrr, *viirs, *atms, *olci, *legacy]:
+    for p in [*viirs, *atms, *olci, *legacy]:
         if p not in seen:
             seen.add(p)
             out.append(p)
@@ -264,23 +271,28 @@ def _rms_km(residual_deg):
 def load(path):
     """Load latitude, longitude and satellite zenith from a cross-track granule.
 
-    Several layouts are handled. A CF-netCDF AVHRR GAC L1C and a C3S ATMS FCDR L1C keep latitude,
-    longitude and a satellite/sensor zenith at the root. An operational VIIRS SDR (GMTCO/GITCO)
-    keeps Latitude, Longitude and SatelliteZenithAngle under a terrain-corrected geolocation group
+    Several layouts are handled. A DIRECTORY of consecutive ATMS SDR geolocation granules is read
+    as one swath by _load_atms_sdr. An operational VIIRS SDR (GMTCO/GITCO) keeps Latitude,
+    Longitude and SatelliteZenithAngle under a terrain-corrected geolocation group
     /All_Data/VIIRS-*-GEO-TC_All, with a per-scan spacecraft ECEF SCPosition. A NASA VIIRS product
-    (VJ103MOD/VNP03MOD) keeps them under a geolocation_data group. Fill values and out-of-range
-    coordinates become NaN. The reader raises rather than guessing when a required field is missing
-    or a geolocation group is ambiguous, returns the granule's geodetic spacecraft altitude when
-    present, and reports the instrument family so the caller knows whether the uniform-step test
-    applies. The FILENAME is included in the family match, because the ATMS FCDR carries a
-    mislabelled 'Microwave Humidity Sounder' title.
+    (VJ103MOD/VNP03MOD) keeps them under a geolocation_data group. An OLCI product is read by
+    _load_olci. Fill values and out-of-range coordinates become NaN. The reader raises rather than
+    guessing when a required field is missing or a geolocation group is ambiguous, returns the
+    granule's geodetic spacecraft altitude when present, and reports the instrument family so the
+    caller knows whether the uniform-step test applies. A single ATMS SDR file is refused here
+    rather than read, because its /All_Data layout is the same as a VIIRS SDR's.
     """
     import netCDF4
+    if Path(str(path)).is_dir():
+        return _load_atms_sdr(Path(str(path)))
     if Path(str(path)).name == "geo_coordinates.nc":
         return _load_olci(Path(str(path)).parent)
     true_alt = None
     with netCDF4.Dataset(str(path)) as ds:
         grp = None
+        if "All_Data" in ds.groups and any("ATMS" in n for n in ds["All_Data"].groups):
+            raise ValueError(f"{Path(str(path)).name} is an ATMS SDR granule. Pass the directory "
+                             "holding the consecutive granules, which is read as one swath")
         if "All_Data" in ds.groups:
             geo = [s for n, s in ds["All_Data"].groups.items() if "GEO-TC" in n] \
                 or [s for n, s in ds["All_Data"].groups.items() if "GEO" in n]
@@ -297,17 +309,16 @@ def load(path):
         meta = (" ".join(str(getattr(ds, a, "")) for a in ("instrument", "platform", "title"))
                 + " " + Path(str(path)).name).upper()
         viirs_layout = "All_Data" in ds.groups or "geolocation_data" in ds.groups
-        if "AVHRR" in meta:
-            family = "AVHRR"
-        elif "ATMS" in meta:
-            family = "ATMS"
-        elif "VIIRS" in meta or viirs_layout:
+        if "AVHRR" in meta or "ATMS" in meta:
+            raise ValueError(
+                "this netCDF reader takes VIIRS geolocation only. AVHRR is read from Level 1B by "
+                "verify_avhrr_l1b.py, and ATMS from a directory of SDR geolocation granules")
+        if "VIIRS" in meta or viirs_layout:
             family = "VIIRS"
         else:
             raise ValueError(
-                "cannot determine the instrument family (AVHRR, ATMS or VIIRS) from layout, "
-                "metadata or filename, so the sampling regime is unknown and the uniform-step test "
-                "cannot be gated safely")
+                "cannot determine the instrument family from layout, metadata or filename, so the "
+                "sampling regime is unknown and the uniform-step test cannot be gated safely")
 
         def get(*names):
             for n in names:
@@ -334,6 +345,90 @@ def load(path):
         raise ValueError(f"lat/lon/zenith shapes disagree or are not 2-D: "
                          f"{lat.shape}, {lon.shape}, {zen.shape}")
     return lat, lon, zen, str(title), true_alt, family
+
+
+# ATMS SDR ellipsoid geolocation granule names, e.g.
+# GATMO_j01_d20260818_t2311096_e2319093_b45338_c20260819002912632000_oebc_ops.h5
+GATMO_NAME = re.compile(r"^GATMO_(?P<sat>[a-z0-9]+)_d(?P<date>\d{8})_t(?P<start>\d{7})"
+                        r"_e(?P<end>\d{7})_b(?P<orbit>\d{5})_c\d{20}_\w+\.h5$")
+ATMS_BEAMS = 96
+ATMS_SCAN_PERIOD_S = 8.0 / 3.0   # one ATMS cross-track scan every 8/3 seconds
+
+
+def _load_atms_sdr(directory):
+    """Load a set of consecutive ATMS SDR ellipsoid geolocation granules (GATMO HDF5, NOAA CLASS)
+    as ONE swath, in time order.
+
+    Each granule keeps Latitude, Longitude, SatelliteZenithAngle (scans x 96 beams), the scan
+    MidTime (microseconds) and the per-scan spacecraft ECEF SCPosition (meters) under
+    /All_Data/ATMS-SDR-GEO_All, and its /Data_Products/ATMS-SDR-GEO group names the instrument.
+    The reader refuses, rather than concatenating silently, when a file name is not a GATMO name,
+    when the granules come from more than one platform, when a granule does not name ATMS or has
+    other than 96 beams, and when the scan times are not contiguous at the ATMS scan period of 8/3
+    seconds (a missing, repeated or overlapping granule). A fill scan, whose time is fill, is
+    allowed because the scans on either side of it are still two periods apart. The spacecraft
+    altitude returned is the median geodetic height of the valid spacecraft positions.
+    """
+    import netCDF4
+    files = sorted(p for p in directory.iterdir() if p.is_file() and p.name.lower().startswith("gatmo_"))
+    if not files:
+        raise ValueError(f"{directory}: no GATMO granules")
+    parsed = []
+    for p in files:
+        m = GATMO_NAME.match(p.name)
+        if m is None:
+            raise ValueError(f"{p.name}: not a recognized ATMS SDR geolocation (GATMO) granule name")
+        parsed.append((m["date"], m["start"], m["sat"], p))
+    sats = sorted({s for _, _, s, _ in parsed})
+    if len(sats) != 1:
+        raise ValueError(f"{directory}: ATMS SDR granules from more than one platform {sats}")
+    parsed.sort()
+
+    lat, lon, zen, scp, mid = [], [], [], [], []
+    for _, _, _, p in parsed:
+        with netCDF4.Dataset(str(p)) as ds:
+            inst = ds["Data_Products"]["ATMS-SDR-GEO"].getncattr("Instrument_Short_Name")
+            if str(inst).strip() != "ATMS":
+                raise ValueError(f"{p.name}: instrument {inst!r}, not ATMS")
+            g = ds["All_Data"]["ATMS-SDR-GEO_All"]
+            parts = [np.ma.filled(g[n][:].astype(float), np.nan)
+                     for n in ("Latitude", "Longitude", "SatelliteZenithAngle")]
+            if any(a.ndim != 2 or a.shape[1] != ATMS_BEAMS or a.shape != parts[0].shape for a in parts):
+                raise ValueError(f"{p.name}: geolocation arrays are not scans x {ATMS_BEAMS} beams")
+            lat.append(parts[0])
+            lon.append(parts[1])
+            zen.append(parts[2])
+            scp.append(np.ma.filled(g["SCPosition"][:].astype(float), np.nan))
+            mid.append(np.ma.filled(g["MidTime"][:], -1).astype(np.int64))
+    lat, lon, zen = np.concatenate(lat), np.concatenate(lon), np.concatenate(zen)
+    scp, mid = np.concatenate(scp), np.concatenate(mid)
+
+    timed = np.flatnonzero(mid > 0)
+    if timed.size < 0.9 * mid.size:
+        raise ValueError(f"{directory}: only {timed.size} of {mid.size} scans carry a valid time")
+    per_scan = np.diff(mid[timed]) / 1e6 / np.diff(timed)
+    off = (per_scan < 0.5 * ATMS_SCAN_PERIOD_S) | (per_scan > 1.5 * ATMS_SCAN_PERIOD_S)
+    if np.any(off):
+        k = int(np.flatnonzero(off)[0])
+        raise ValueError(f"{directory}: scans {timed[k]} and {timed[k + 1]} are "
+                         f"{per_scan[k] * np.diff(timed)[k]:.1f} s apart over "
+                         f"{np.diff(timed)[k]} scan(s), so the granules are not contiguous")
+
+    radius = np.linalg.norm(scp, axis=1)
+    good_pos = np.isfinite(radius) & (radius > 6.5e6) & (radius < 7.6e6)
+    if good_pos.sum() < 0.9 * radius.size:
+        raise ValueError(f"{directory}: only {good_pos.sum()} of {radius.size} spacecraft positions valid")
+    true_alt = _geodetic_altitude_km(scp[good_pos])
+
+    for a in (lat, lon, zen):
+        a[a < -200.0] = np.nan
+    lat[np.abs(lat) > 90.0] = np.nan
+    lon[np.abs(lon) > 180.0] = np.nan
+    zen[(zen < 0.0) | (zen > 90.0)] = np.nan
+    first, last = parsed[0], parsed[-1]
+    title = (f"ATMS SDR geolocation, {sats[0].upper()}, {len(parsed)} granules from "
+             f"{first[0]} {first[1][:4]} UTC to {last[0]} {GATMO_NAME.match(last[3].name)['end'][:4]} UTC")
+    return lat, lon, zen, title, true_alt, "ATMS"
 
 
 def _load_olci(sen3_dir):
@@ -520,7 +615,9 @@ def validate_granule(path):
         assert m_ix < 0.3 * m_eq and m_ix < index_cap and p95_ix < 2.0 * index_cap, (
             f"{rel}: the pixel-index model did not reproduce this uniform swath "
             f"(median {m_ix:.2f} km, 95th {p95_ix:.2f} km, cap {index_cap} km)")
-        assert abs(np.median(ix_step) - nominal_step) < 0.15 * nominal_step \
+        # 2 percent of the nominal step. A 15 percent tolerance used earlier accepted a nominal ATMS
+        # step of 1.30 degrees against a fitted 1.1068, so it could not tell the real step apart.
+        assert abs(np.median(ix_step) - nominal_step) < 0.02 * nominal_step \
             and np.std(ix_step) < 0.1 * nominal_step, (
             f"{rel}: fitted step {np.median(ix_step):.4f} deg (std {np.std(ix_step):.4f}) does not "
             f"match the known {family} step {nominal_step} deg")
@@ -543,7 +640,8 @@ def main():
     granules = _find_granules()
     if not granules:
         print("SKIP: no cross-track granule present in data/. See the module docstring for "
-              "the sources (a CF-netCDF AVHRR GAC L1C or ATMS FCDR L1C, or a native VIIRS granule).")
+              "the sources (a directory of ATMS SDR geolocation granules, a VIIRS SDR geolocation "
+              "file or an OLCI L1B product).")
         return 0
     print(f"validating {len(granules)} cross-track granule(s)")
     failures = []

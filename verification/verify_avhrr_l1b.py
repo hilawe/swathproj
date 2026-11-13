@@ -1,24 +1,29 @@
-"""Compare native AVHRR GAC geolocation between the NOAA Level 1B and the EUMETSAT L1C.
+"""Fit the native cross-track models to AVHRR GAC Level 1B granules from NOAA CLASS.
 
 Run from the repo root with the project venv:
 
-    .venv/bin/python verification/compare_avhrr_l1b_l1c.py
+    .venv/bin/python verification/verify_avhrr_l1b.py
 
-The CF-netCDF granule used for the native cross-track evidence (data/avhrr_l1c/*.nc, EUMETSAT C3S
-FCDR AVHRR GAC L1C) derives its geolocation from NOAA Level 1B GAC files. This script reads raw L1B
-granules (data/avhrr_gac_l1b/NSS.GHRR.*.SV, NOAA KLM format, ordered from NOAA CLASS) and runs
-the SAME three cross-track fits on the L1B's own STORED anchor-point geolocation, then the L1C
-granule through the standard harness, and compares the recovered physics. The value of the
-comparison is that the L1B anchors are the upstream source, at the original 51-points-per-scan
-sampling with no interpolation, in a different format and from a different archive, so agreement
-in the recovered step and altitude checks the native cross-track result at its source.
+Reads every AVHRR GAC Level 1B granule under data/avhrr_gac_l1b/ (NSS.GHRR.*, NOAA KLM format,
+ordered from NOAA CLASS) and runs the three cross-track fits of verify_native_crosstrack.py on
+each granule's STORED anchor-point geolocation. Level 1B keeps latitude and longitude at 51 anchor
+points per scan, so the fits see the producer's own navigation at its original sampling, with no
+interpolation. Each granule must pass on its own, and the script passes only when all of them do.
 
-The granules are different orbits (the L1C is 2024, the L1B order is 2026), so the comparison is
-of recovered instrument physics (per-pixel look-angle step, orbit altitude, the equal-angle
-failure), not a pixel-by-pixel match.
+What each fit shows, from the weakest claim to the strongest:
+  1. The equal-angle model (central angle linear in anchor index) must FAIL by tens of kilometers.
+     This is the direct evidence that the native samples are not a uniform angular grid.
+  2. The file-zenith fit is a CONSISTENCY check, because the producer derives the satellite zenith
+     and the coordinates together. Its cap is looser than a per-pixel product would need,
+     because the residual on these anchors is about 2.9 km, and the source of that residual was
+     not examined.
+  3. The anchor-index fit reproduces the radial profile from the anchor index and two physical
+     parameters, the look-angle step and the altitude, with the zenith used only to locate nadir.
+     The recovered step must match the AVHRR GAC step and the recovered altitude must match the
+     spacecraft altitude the granule itself records.
 
 L1B format facts used here follow the NOAA KLM User's Guide layout as encoded by the pygac
-project's GAC KLM reader (the same reader named in the L1C filename). The file has an optional
+project's GAC KLM reader. The file has an optional
 512-byte archive header, then 4608-byte records (one header record, then one record per scan).
 Each scan record holds 51 anchor points at every 8th GAC pixel starting at pixel 5 (1-based),
 with latitude and longitude as big-endian int32 scaled by 1e-4 degree, an angular-relationships
@@ -28,11 +33,10 @@ is not assumed. The satellite-zenith slot is identified empirically as the uniqu
 V-shaped, near-symmetric cross-track profile, and the script refuses to proceed if zero or
 several slots qualify.
 
-Scope. This compares sampled ONE-DIMENSIONAL RADIAL PROFILES, not two-dimensional geolocation,
-and the two products share a geophysical lineage. What is independent is the archive, the
-format, and the sampling (stored anchors against interpolated pixels). The nadir reference is
-the nearest stored anchor, so sub-anchor nadir displacement stays inside the pixel-index
-residual rather than being tuned out.
+Scope. These are sampled ONE-DIMENSIONAL RADIAL PROFILES, not two-dimensional geolocation. They
+do not check that the anchors lie on the cross-track great circle or test their along-track
+positions. The nadir reference is the nearest stored anchor, so sub-anchor nadir displacement
+stays inside the anchor-index residual rather than being tuned out.
 """
 
 from __future__ import annotations
@@ -48,7 +52,6 @@ sys.path.insert(0, str(REPO))
 from verification.verify_native_crosstrack import (  # noqa: E402
     fit_crosstrack_index,
     fit_crosstrack_profile,
-    load as load_l1c,
 )
 
 RECORD = 4608
@@ -207,121 +210,73 @@ def anchor_stats(lat, lon, zen, alt_km, quality, sample=300):
         "n_sampled": len(rows),
         "equal_km": float(np.median(eq)),
         "zenith_km": float(np.median(zn)),
+        "zenith_p95_km": float(np.percentile(zn, 95)),
         "zenith_alt_km": float(np.median(zn_alt)),
         "index_km": float(np.median(ix)),
+        "index_p95_km": float(np.percentile(ix, 95)),
         "index_step_deg": float(np.median(ix_step)),
         "index_alt_km": float(np.median(ix_alt)),
         "file_alt_km": float(np.median(alt_km[np.isfinite(alt_km) & (alt_km > 0)])),
     }
 
 
-def l1c_stats(path, sample=300):
-    """The same three fits on the L1C granule via the standard loader, at full 409-pixel
-    resolution, for the side-by-side comparison."""
-    lat, lon, zen, _title, _alt, family = load_l1c(path)
-    if family != "AVHRR":
-        raise ValueError(f"{path}: expected an AVHRR L1C, got {family}")
-    n = lat.shape[0]
-    rng = np.random.default_rng(0)
-    rows = rng.choice(n, size=min(sample, n), replace=False)
-    eq, zn, ix, ix_step, ix_alt = [], [], [], [], []
-    for r in rows:
-        good = np.isfinite(lat[r]) & np.isfinite(lon[r]) & np.isfinite(zen[r])
-        if np.count_nonzero(good) < lat.shape[1] * 0.9:
-            continue
-        nadir = int(np.argmin(np.where(good, np.abs(zen[r]), np.inf)))
-        f = fit_crosstrack_profile(lat[r], lon[r], zen[r], nadir)
-        u = fit_crosstrack_index(lat[r], lon[r], nadir)
-        if np.isfinite(f["rms_native_km"]) and np.isfinite(f["rms_equal_km"]):
-            eq.append(f["rms_equal_km"])
-            zn.append(f["rms_native_km"])
-            ix.append(u["rms_km"])
-            ix_step.append(u["look_step_deg"])
-            ix_alt.append(u["fitted_altitude_km"])
-    if len(eq) < 0.8 * len(rows):
-        raise ValueError(f"L1C: only {len(eq)} of {len(rows)} sampled lines usable")
-    return {
-        "n_used": len(eq),
-        "equal_km": float(np.median(eq)),
-        "zenith_km": float(np.median(zn)),
-        "index_km": float(np.median(ix)),
-        "index_step_deg": float(np.median(ix_step)),
-        "index_alt_km": float(np.median(ix_alt)),
-    }
-
-
 def main():
     l1b_files = sorted((REPO / "data" / "avhrr_gac_l1b").glob("NSS.GHRR.*"))
-    l1c_files = sorted((REPO / "data" / "avhrr_l1c").glob("*.nc"))
-    if not l1b_files or not l1c_files:
-        print("SKIP: needs data/avhrr_gac_l1b/NSS.GHRR.* (NOAA CLASS L1B) and "
-              "data/avhrr_l1c/*.nc (EUMETSAT C3S FCDR L1C)")
+    if not l1b_files:
+        print("SKIP: needs data/avhrr_gac_l1b/NSS.GHRR.* (AVHRR GAC Level 1B from NOAA CLASS)")
         return 0
 
-    results = []
+    # Thresholds. The equal-angle floor, the anchor-index cap and the step tolerance were set from
+    # the first measured runs (equal-angle about 97 km, anchor-index fit about 3.6 km at a step of
+    # 0.2700 degrees per GAC pixel and an altitude of 828 to 829 km, file zenith about 2.9 km,
+    # onboard altitude 830.0 km) with headroom, per the set-from-clean-values rule. The 0.2709 degree
+    # reference step and its 0.005 degree tolerance are carried unchanged from those runs.
+    failures = []
     for p in l1b_files:
         lat, lon, ang, alt_km, quality = read_l1b(p)
         zen, slot = identify_satellite_zenith(ang)
         s = anchor_stats(lat, lon, zen, alt_km, quality)
-        results.append((p.name, s))
+        step_pix = s["index_step_deg"] / ANCHOR_STEP_PIXELS
         print(f"\n{p.name}: {lat.shape[0]} scans, satellite zenith at {slot}")
         print(f"  usable sampled scans          : {s['n_used']} of {s['n_sampled']} "
               f"({s['n_quality_rejected']} rejected by fatal quality bits)")
         print(f"  equal-angle (linear in index) : median {s['equal_km']:7.2f} km")
-        print(f"  pixel-index (anchors)         : median {s['index_km']:7.2f} km "
-              f"(step {s['index_step_deg']:.4f} deg/anchor = {s['index_step_deg']/ANCHOR_STEP_PIXELS:.4f} "
-              f"deg/GAC pixel, altitude {s['index_alt_km']:.0f} km)")
+        print(f"  anchor-index (no fit zenith)  : median {s['index_km']:7.2f} km "
+              f"(95th {s['index_p95_km']:.2f} km, step {s['index_step_deg']:.4f} deg/anchor = "
+              f"{step_pix:.4f} deg/GAC pixel, altitude {s['index_alt_km']:.0f} km)")
         print(f"  file-zenith (consistency)     : median {s['zenith_km']:7.2f} km "
-              f"(altitude {s['zenith_alt_km']:.0f} km)")
+              f"(95th {s['zenith_p95_km']:.2f} km, altitude {s['zenith_alt_km']:.0f} km)")
         print(f"  file's own spacecraft altitude: {s['file_alt_km']:.1f} km")
+        checks = [
+            (s["equal_km"] > 50.0, f"equal-angle fits ({s['equal_km']:.1f} km), not native?"),
+            (s["index_km"] < 8.0 and s["index_km"] < 0.15 * s["equal_km"],
+             f"anchor-index fit {s['index_km']:.2f} km does not reproduce the anchors"),
+            (s["zenith_km"] < 6.0,
+             f"stored-zenith consistency {s['zenith_km']:.2f} km exceeds its 6 km cap"),
+            (abs(step_pix - 0.2709) < 0.005,
+             f"recovered step {step_pix:.4f} deg/GAC pixel is not the AVHRR GAC step"),
+            (abs(s["zenith_alt_km"] - s["file_alt_km"]) < 10.0,
+             f"fitted altitude {s['zenith_alt_km']:.0f} km disagrees with the granule's own "
+             f"spacecraft altitude {s['file_alt_km']:.1f} km"),
+            (abs(s["index_alt_km"] - s["file_alt_km"]) < 10.0,
+             f"anchor-index altitude {s['index_alt_km']:.0f} km disagrees with the granule's own "
+             f"spacecraft altitude {s['file_alt_km']:.1f} km"),
+        ]
+        bad = [msg for ok, msg in checks if not ok]
+        for msg in bad:
+            print(f"  FAILED: {msg}")
+        if bad:
+            failures.append(p.name)
+    if failures:
+        raise AssertionError(f"{len(failures)} of {len(l1b_files)} Level 1B granule(s) failed: "
+                             + "; ".join(failures))
 
-    lc = l1c_stats(l1c_files[0])
-    print(f"\n{l1c_files[0].name}:")
-    print(f"  equal-angle                   : median {lc['equal_km']:7.2f} km")
-    print(f"  pixel-index                   : median {lc['index_km']:7.2f} km "
-          f"(step {lc['index_step_deg']:.4f} deg/GAC pixel, altitude {lc['index_alt_km']:.0f} km)")
-    print(f"  file-zenith                   : median {lc['zenith_km']:7.2f} km")
-    # The L1C side must itself pass before its numbers can anchor the comparison, at the same
-    # AVHRR caps the standard harness applies (measured 98.9 / 3.67 / 0.12 km).
-    assert lc["equal_km"] > 50.0, f"L1C: equal-angle fits ({lc['equal_km']:.1f} km)"
-    assert lc["index_km"] < 6.0, f"L1C: pixel-index residual {lc['index_km']:.2f} km too large"
-    assert lc["zenith_km"] < 1.0, f"L1C: file-zenith residual {lc['zenith_km']:.2f} km too large"
-
-    # Assertions. Thresholds are set from the first measured run (equal-angle ~97 km, index fit
-    # ~3.6 km at step 0.2700 deg/GAC pixel and altitude 828-829 km, file zenith ~2.9 km,
-    # onboard altitude 830.0 km) with headroom, per the set-from-clean-values rule. The L1B
-    # zenith cap is far looser than the L1C's because the L1B stores angles quantized to
-    # 0.01 degree, which alone contributes kilometers at the swath edge.
-    print("\nComparison of recovered physics, L1B anchors (per GAC pixel) vs L1C pixels:")
-    for name, s in results:
-        step_pix = s["index_step_deg"] / ANCHOR_STEP_PIXELS
-        print(f"  {name}: step {step_pix:.4f} vs {lc['index_step_deg']:.4f} deg "
-              f"({100 * abs(step_pix - lc['index_step_deg']) / lc['index_step_deg']:.2f}% apart), "
-              f"altitude {s['index_alt_km']:.0f} vs {lc['index_alt_km']:.0f} km, "
-              f"fitted-vs-onboard altitude {s['zenith_alt_km']:.0f} vs {s['file_alt_km']:.0f} km")
-        assert s["equal_km"] > 50.0, f"{name}: equal-angle fits ({s['equal_km']:.1f} km), not native?"
-        assert s["index_km"] < 8.0 and s["index_km"] < 0.15 * s["equal_km"], (
-            f"{name}: pixel-index fit {s['index_km']:.2f} km does not reproduce the anchors")
-        assert s["zenith_km"] < 6.0, (
-            f"{name}: stored-zenith consistency {s['zenith_km']:.2f} km exceeds the "
-            f"quantization-limited cap")
-        assert abs(step_pix - 0.2709) < 0.005, (
-            f"{name}: recovered step {step_pix:.4f} deg/GAC pixel is not the AVHRR GAC step")
-        assert abs(step_pix - lc["index_step_deg"]) < 0.005, (
-            f"{name}: L1B step {step_pix:.4f} disagrees with L1C {lc['index_step_deg']:.4f}")
-        assert abs(s["index_alt_km"] - lc["index_alt_km"]) < 15.0, (
-            f"{name}: L1B altitude {s['index_alt_km']:.0f} km disagrees with L1C "
-            f"{lc['index_alt_km']:.0f} km")
-        assert abs(s["zenith_alt_km"] - s["file_alt_km"]) < 10.0, (
-            f"{name}: fitted altitude {s['zenith_alt_km']:.0f} km disagrees with the granule's "
-            f"own onboard value {s['file_alt_km']:.1f} km")
-
-    print("\ndone: on sampled one-dimensional radial profiles, the raw L1B anchor geolocation "
-          "gives the same recovered physics as the L1C (step, altitude, equal-angle failure), "
-          "from an independent archive and format though a shared geophysical lineage, and the "
-          "fitted altitude matches the granule's own onboard navigation value. The nadir anchor "
-          "is the nearest stored point, so sub-anchor nadir displacement remains inside the "
-          "pixel-index residual.")
+    print(f"\ndone: {len(l1b_files)} Level 1B granule(s). On sampled one-dimensional radial "
+          "profiles of the stored anchors, the equal-angle model fails, the anchor-index fit "
+          "recovers the AVHRR GAC step and an altitude matching the granule's own spacecraft "
+          "altitude, and the stored zenith is consistent with the slant-range relation. The nadir "
+          "anchor is the nearest stored point, so sub-anchor nadir displacement remains inside the "
+          "anchor-index residual.")
     return 0
 
 

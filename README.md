@@ -34,9 +34,9 @@ docstring). Measured against real products:
 | instrument | platform | geometry | test | median residual |
 |---|---|---|---|---|
 | VGAC | NOAA-20 | cross-track, resampled | full mapping | 0.18 m |
-| AVHRR GAC L1C | Metop-C | cross-track, native | radial profile | 3.7 km |
+| AVHRR GAC Level 1B | Metop-C | cross-track, native | radial profile | 3.6 km |
 | VIIRS SDR | NOAA-20 | cross-track, native | radial profile, file zenith | 0.3 km |
-| ATMS FCDR L1C | Suomi-NPP | cross-track, native | radial profile | 7.2 km |
+| ATMS SDR | NOAA-20 | cross-track, native | radial profile | 8.6 km |
 | SSM/I | DMSP F13 | conical | full mapping | 2.1 km |
 | SSMIS | DMSP F17 | conical | full mapping | 2.3 km |
 | AMSR2 | GCOM-W1 | conical | full mapping | 3.1 km |
