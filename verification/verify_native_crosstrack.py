@@ -126,7 +126,10 @@ def _find_granules():
     swath is the DIRECTORY holding a set of consecutive GATMO granules, because one granule file
     covers only minutes of an orbit."""
     d = REPO / "data"
-    listed = [p for p in sorted(d.rglob("*")) if p.is_file()]
+    # data/vgac_boundary/ holds the VIIRS granules at the two ends of VGAC orbit 42076, read only to
+    # repeat the producer's calculation of that orbit's rate. They are not swaths to validate.
+    boundary = d / "vgac_boundary"
+    listed = [p for p in sorted(d.rglob("*")) if p.is_file() and boundary not in p.parents]
     files = [p.resolve() for p in listed]
 
     def match(pred):
